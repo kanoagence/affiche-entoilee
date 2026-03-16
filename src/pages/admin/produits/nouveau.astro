@@ -1,0 +1,157 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
+let error = '';
+let success = false;
+
+if (Astro.request.method === 'POST') {
+  try {
+    const data = await Astro.request.formData();
+
+    const titre = (data.get('titre') as string)?.trim();
+    const description = (data.get('description') as string)?.trim();
+    const annee = (data.get('annee') as string)?.trim();
+    const dimensions = (data.get('dimensions') as string)?.trim() || undefined;
+    const etat = data.get('etat') as string;
+    const prixRaw = data.get('prix') as string;
+    const prix = prixRaw ? parseInt(prixRaw, 10) : undefined;
+    const surDevis = data.get('surDevis') === 'on';
+    const disponible = data.get('disponible') !== 'off';
+    const artiste = (data.get('artiste') as string)?.trim() || undefined;
+    const imprimeur = (data.get('imprimeur') as string)?.trim() || undefined;
+
+    if (!titre || !description || !annee || !etat) {
+      error = 'Les champs titre, description, année et état sont obligatoires.';
+    } else {
+      // Generate slug from titre
+      const slug = titre
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+
+      const produitData = {
+        titre,
+        description,
+        annee,
+        ...(dimensions && { dimensions }),
+        etat,
+        ...(prix && !surDevis && { prix }),
+        surDevis,
+        disponible,
+        images: [],
+        ...(artiste && { artiste }),
+        ...(imprimeur && { imprimeur }),
+      };
+
+      // Write to content directory
+      const contentDir = join(process.cwd(), 'src', 'content', 'produits');
+      const filePath = join(contentDir, `${slug}.json`);
+      await writeFile(filePath, JSON.stringify(produitData, null, 2), 'utf-8');
+
+      return Astro.redirect('/admin/produits?success=created');
+    }
+  } catch (e) {
+    console.error(e);
+    error = 'Erreur lors de la création du produit. Vérifiez les logs.';
+  }
+}
+---
+
+<AdminLayout title="Nouveau produit — Admin Hervé Affiches" activeSection="produits">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(245,240,232,0.08);">
+    <h1 class="admin-page-title" style="margin: 0; border: none; padding: 0;">Nouveau produit</h1>
+    <a href="/admin/produits" class="admin-btn admin-btn-secondary">← Retour</a>
+  </div>
+
+  {error && <div class="alert alert-error">{error}</div>}
+
+  <form method="POST" action="/admin/produits/nouveau">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+      <!-- Left column -->
+      <div>
+        <div class="admin-card">
+          <h2 style="font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(245,240,232,0.5); margin-bottom: 1.5rem;">
+            Informations principales
+          </h2>
+
+          <div class="admin-form-group">
+            <label class="admin-label" for="titre">Titre *</label>
+            <input class="admin-input" type="text" id="titre" name="titre" required placeholder="Ex: Air France — Paris New York" />
+          </div>
+
+          <div class="admin-form-group">
+            <label class="admin-label" for="description">Description *</label>
+            <textarea class="admin-textarea" id="description" name="description" required rows="4" placeholder="Description de l'affiche..."></textarea>
+          </div>
+
+          <div class="admin-grid-2">
+            <div class="admin-form-group">
+              <label class="admin-label" for="annee">Année *</label>
+              <input class="admin-input" type="text" id="annee" name="annee" required placeholder="c. 1949" />
+            </div>
+            <div class="admin-form-group">
+              <label class="admin-label" for="dimensions">Dimensions</label>
+              <input class="admin-input" type="text" id="dimensions" name="dimensions" placeholder="62 × 100 cm" />
+            </div>
+          </div>
+
+          <div class="admin-grid-2">
+            <div class="admin-form-group">
+              <label class="admin-label" for="artiste">Artiste</label>
+              <input class="admin-input" type="text" id="artiste" name="artiste" placeholder="Roger Broders" />
+            </div>
+            <div class="admin-form-group">
+              <label class="admin-label" for="imprimeur">Imprimeur</label>
+              <input class="admin-input" type="text" id="imprimeur" name="imprimeur" placeholder="Imp. Moullot, Marseille" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right column -->
+      <div>
+        <div class="admin-card">
+          <h2 style="font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(245,240,232,0.5); margin-bottom: 1.5rem;">
+            État & Prix
+          </h2>
+
+          <div class="admin-form-group">
+            <label class="admin-label" for="etat">État *</label>
+            <select class="admin-select" id="etat" name="etat" required>
+              <option value="">Sélectionner...</option>
+              <option value="entoilee">Entoilée</option>
+              <option value="restauree">Restaurée</option>
+              <option value="a-restaurer">À restaurer</option>
+            </select>
+          </div>
+
+          <div class="admin-form-group">
+            <label class="admin-label" for="prix">Prix (€)</label>
+            <input class="admin-input" type="number" id="prix" name="prix" placeholder="2400" min="0" />
+            <p style="font-size: 0.75rem; color: rgba(245,240,232,0.3); margin-top: 0.3rem;">Laissez vide si sur devis</p>
+          </div>
+
+          <div class="admin-form-group" style="display: flex; align-items: center; gap: 0.75rem;">
+            <input type="checkbox" id="surDevis" name="surDevis" style="width: 16px; height: 16px; accent-color: var(--rust);" />
+            <label class="admin-label" for="surDevis" style="margin: 0;">Sur devis uniquement</label>
+          </div>
+
+          <div class="admin-form-group" style="display: flex; align-items: center; gap: 0.75rem;">
+            <input type="checkbox" id="disponible" name="disponible" checked style="width: 16px; height: 16px; accent-color: var(--rust);" />
+            <label class="admin-label" for="disponible" style="margin: 0;">Disponible à la vente</label>
+          </div>
+        </div>
+
+        <div style="margin-top: 1rem;">
+          <button type="submit" class="admin-btn admin-btn-primary" style="width: 100%; text-align: center; padding: 0.875rem; font-size: 0.72rem;">
+            Créer le produit
+          </button>
+        </div>
+      </div>
+    </div>
+  </form>
+</AdminLayout>

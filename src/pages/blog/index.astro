@@ -1,0 +1,49 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import BlogCard from '../../components/BlogCard.astro';
+import { getArticles } from '../../lib/data';
+
+const articles = await getArticles(true);
+---
+
+<BaseLayout
+  title="Revue — Hervé Affiches"
+  description="Notes de l'atelier sur l'histoire de l'affiche, les techniques de restauration et les grands maîtres de l'art graphique français."
+>
+  <!-- Header -->
+  <section
+    style="padding: 10rem 3rem 5rem; background: linear-gradient(160deg, var(--cream) 0%, var(--ivory) 100%); border-bottom: 1px solid rgba(139,111,71,0.2);"
+  >
+    <div style="max-width: 700px; margin: 0 auto; text-align: center;">
+      <p class="section-eyebrow" style="justify-content:center;">La revue</p>
+      <h1 style="font-size: clamp(2rem, 4vw, 3rem); margin: 1rem 0 1.5rem;">
+        Articles & expertise
+      </h1>
+      <p style="font-size: 1.1rem; color: var(--sepia); font-weight: 300; line-height: 1.8;">
+        Notes de l'atelier sur l'histoire de l'affiche française,
+        les techniques de restauration et les grands maîtres de l'art graphique.
+      </p>
+    </div>
+  </section>
+
+  <!-- Articles grid -->
+  <section class="section">
+    {articles.length === 0 ? (
+      <div style="text-align: center; color: var(--sepia); padding: 4rem 0;">
+        <p style="font-size: 1.2rem;">Aucun article publié pour le moment.</p>
+      </div>
+    ) : (
+      <div class="blog-grid">
+        {articles.map((article) => (
+          <BlogCard
+            slug={article.slug}
+            titre={article.titre}
+            resume={article.resume}
+            date={article.date}
+            image={article.image}
+          />
+        ))}
+      </div>
+    )}
+  </section>
+</BaseLayout>

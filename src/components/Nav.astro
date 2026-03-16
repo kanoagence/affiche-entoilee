@@ -1,0 +1,33 @@
+---
+const currentPath = Astro.url.pathname;
+---
+
+<nav class="nav" id="main-nav">
+  <a href="/" class="nav-logo" aria-label="Hervé Affiches — Accueil">
+    <span class="nav-logo-name">Hervé</span>
+    <span class="nav-logo-sub">Restauration d'affiches — Est. 2024</span>
+  </a>
+
+  <ul class="nav-links">
+    <li>
+      <a href="/produits" class={currentPath.startsWith('/produits') ? 'active' : ''}>
+        Collection
+      </a>
+    </li>
+    <li>
+      <a href="/qui-sommes-nous" class={currentPath === '/qui-sommes-nous' ? 'active' : ''}>
+        L'atelier
+      </a>
+    </li>
+    <li>
+      <a href="/blog" class={currentPath.startsWith('/blog') ? 'active' : ''}>
+        Revue
+      </a>
+    </li>
+    <li>
+      <a href="/contact" class={`nav-cta ${currentPath === '/contact' ? 'active' : ''}`}>
+        Contact
+      </a>
+    </li>
+  </ul>
+</nav>

@@ -1,0 +1,80 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { getArticles, formatDate } from '../../../lib/data';
+
+// Get all articles including drafts
+const articles = await getArticles(false);
+
+const successMsg = Astro.url.searchParams.get('success');
+---
+
+<AdminLayout title="Blog — Admin Hervé Affiches" activeSection="blog">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(245,240,232,0.08);">
+    <h1 class="admin-page-title" style="margin: 0; border: none; padding: 0;">
+      Articles <span style="font-size: 1rem; color: rgba(245,240,232,0.4);">({articles.length})</span>
+    </h1>
+    <a href="/admin/blog/nouveau" class="admin-btn admin-btn-primary">+ Nouvel article</a>
+  </div>
+
+  {successMsg === 'created' && <div class="alert alert-success">Article créé avec succès.</div>}
+  {successMsg === 'updated' && <div class="alert alert-success">Article mis à jour.</div>}
+  {successMsg === 'deleted' && <div class="alert alert-success">Article supprimé.</div>}
+
+  {articles.length === 0 ? (
+    <div style="text-align: center; padding: 4rem; color: rgba(245,240,232,0.4);">
+      <p style="font-size: 1.1rem; margin-bottom: 1rem;">Aucun article pour le moment.</p>
+      <a href="/admin/blog/nouveau" class="admin-btn admin-btn-primary">Écrire le premier article</a>
+    </div>
+  ) : (
+    <div class="admin-card" style="padding: 0;">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Titre</th>
+            <th>Date</th>
+            <th>Statut</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {articles.map((a) => (
+            <tr>
+              <td>
+                <strong style="color: var(--cream); display: block;">{a.titre}</strong>
+                <span style="font-size: 0.8rem; color: rgba(245,240,232,0.4); display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; max-width: 400px;">
+                  {a.resume}
+                </span>
+              </td>
+              <td style="font-family: 'DM Mono', monospace; font-size: 0.75rem; opacity: 0.6; white-space: nowrap;">
+                {new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }).format(a.date)}
+              </td>
+              <td>
+                {a.publie ? (
+                  <span class="admin-badge" style="background: rgba(74,222,128,0.15); color: #4ade80;">
+                    Publié
+                  </span>
+                ) : (
+                  <span class="admin-badge" style="background: rgba(139,111,71,0.2); color: var(--sepia);">
+                    Brouillon
+                  </span>
+                )}
+              </td>
+              <td>
+                <div style="display: flex; gap: 0.5rem;">
+                  <a href={`/admin/blog/${a.slug}`} class="admin-btn admin-btn-secondary" style="padding: 0.25rem 0.6rem; font-size: 0.58rem;">
+                    Modifier
+                  </a>
+                  {a.publie && (
+                    <a href={`/blog/${a.slug}`} target="_blank" class="admin-btn admin-btn-secondary" style="padding: 0.25rem 0.6rem; font-size: 0.58rem; opacity: 0.5;">
+                      ↗
+                    </a>
+                  )}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+</AdminLayout>

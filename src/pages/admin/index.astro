@@ -1,0 +1,154 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getProduits, getArticles } from '../../lib/data';
+
+const produits = await getProduits();
+const articles = await getArticles(false); // all articles including drafts
+
+const produitsDisponibles = produits.filter((p) => p.disponible).length;
+const produitsEntoiles = produits.filter((p) => p.etat === 'entoilee').length;
+const articlesPublies = articles.filter((a) => a.publie).length;
+const articlesBrouillons = articles.filter((a) => !a.publie).length;
+
+const recentProduits = produits.slice(0, 5);
+const recentArticles = articles.slice(0, 5);
+---
+
+<AdminLayout title="Tableau de bord — Admin Hervé Affiches" activeSection="dashboard">
+  <h1 class="admin-page-title">Tableau de bord</h1>
+
+  <!-- Stats -->
+  <div class="admin-stats">
+    <div class="stat-card">
+      <span class="stat-number">{produits.length}</span>
+      <span class="stat-label">Produits total</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-number">{produitsDisponibles}</span>
+      <span class="stat-label">Disponibles</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-number">{articlesPublies}</span>
+      <span class="stat-label">Articles publiés</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-number">{articlesBrouillons}</span>
+      <span class="stat-label">Brouillons</span>
+    </div>
+  </div>
+
+  <!-- Quick actions -->
+  <div class="admin-card" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; margin-bottom: 2rem;">
+    <span style="font-family: 'DM Mono', monospace; font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(245,240,232,0.4); margin-right: 0.5rem;">
+      Actions rapides :
+    </span>
+    <a href="/admin/produits/nouveau" class="admin-btn admin-btn-primary">+ Nouveau produit</a>
+    <a href="/admin/blog/nouveau" class="admin-btn admin-btn-primary">+ Nouvel article</a>
+    <a href="/produits" target="_blank" class="admin-btn admin-btn-secondary">↗ Collection publique</a>
+    <a href="/blog" target="_blank" class="admin-btn admin-btn-secondary">↗ Blog public</a>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+    <!-- Recent products -->
+    <div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2 style="font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(245,240,232,0.5);">
+          Produits récents
+        </h2>
+        <a href="/admin/produits" class="admin-btn admin-btn-secondary" style="padding: 0.25rem 0.6rem; font-size: 0.58rem;">
+          Voir tout →
+        </a>
+      </div>
+      <div class="admin-card" style="padding: 0;">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Titre</th>
+              <th>État</th>
+              <th>Prix</th>
+            </tr>
+          </thead>
+          <tbody>
+            {recentProduits.map((p) => (
+              <tr>
+                <td>
+                  <a
+                    href={`/admin/produits/${p.slug}`}
+                    style="color: var(--gold-light); font-size: 0.9rem;"
+                  >
+                    {p.titre}
+                  </a>
+                  <br />
+                  <span style="font-size: 0.75rem; opacity: 0.5;">{p.annee}</span>
+                </td>
+                <td>
+                  <span
+                    class="admin-badge"
+                    style={
+                      p.etat === 'entoilee'
+                        ? 'background: rgba(196,98,45,0.2); color: var(--rust);'
+                        : p.etat === 'restauree'
+                        ? 'background: rgba(184,150,46,0.2); color: var(--gold-light);'
+                        : 'background: rgba(245,240,232,0.1); color: rgba(245,240,232,0.5);'
+                    }
+                  >
+                    {p.etat}
+                  </span>
+                </td>
+                <td style="color: var(--gold-light);">
+                  {p.surDevis ? 'Sur devis' : p.prix ? `${p.prix.toLocaleString('fr-FR')} €` : '—'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Recent articles -->
+    <div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2 style="font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(245,240,232,0.5);">
+          Articles récents
+        </h2>
+        <a href="/admin/blog" class="admin-btn admin-btn-secondary" style="padding: 0.25rem 0.6rem; font-size: 0.58rem;">
+          Voir tout →
+        </a>
+      </div>
+      <div class="admin-card" style="padding: 0;">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Titre</th>
+              <th>Statut</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {recentArticles.map((a) => (
+              <tr>
+                <td>
+                  <a
+                    href={`/admin/blog/${a.slug}`}
+                    style="color: var(--gold-light); font-size: 0.9rem;"
+                  >
+                    {a.titre}
+                  </a>
+                </td>
+                <td>
+                  <span class="status-dot" class:list={[a.publie ? 'published' : 'draft']}></span>
+                  <span style="font-size: 0.8rem; opacity: 0.7;">
+                    {a.publie ? 'Publié' : 'Brouillon'}
+                  </span>
+                </td>
+                <td style="font-size: 0.8rem; opacity: 0.6;">
+                  {new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }).format(a.date)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</AdminLayout>

@@ -1,0 +1,76 @@
+---
+interface Props {
+  slug: string;
+  titre: string;
+  annee: string;
+  etat: 'entoilee' | 'restauree' | 'a-restaurer';
+  prix?: number;
+  surDevis?: boolean;
+  disponible?: boolean;
+  images?: string[];
+  artiste?: string;
+  gradient?: string;
+}
+
+const {
+  slug,
+  titre,
+  annee,
+  etat,
+  prix,
+  surDevis = false,
+  disponible = true,
+  images = [],
+  artiste,
+  gradient,
+} = Astro.props;
+
+const badgeClass = {
+  entoilee: 'badge-entoilee',
+  restauree: 'badge-restauree',
+  'a-restaurer': 'badge-a-restaurer',
+}[etat];
+
+const etatLabel = {
+  entoilee: 'Entoilée',
+  restauree: 'Restaurée',
+  'a-restaurer': 'À restaurer',
+}[etat];
+
+const defaultGradients: Record<string, string> = {
+  entoilee: 'linear-gradient(160deg, #C4622D 0%, #8B6F47 50%, #1A1410 100%)',
+  restauree: 'linear-gradient(160deg, #B8962E 0%, #8B6F47 50%, #2D2520 100%)',
+  'a-restaurer': 'linear-gradient(160deg, #2D2520 0%, #8B6F47 60%, #C4622D 100%)',
+};
+
+const bgGradient = gradient ?? (images[0] ? undefined : defaultGradients[etat]);
+
+function formatPrix(p?: number, sd?: boolean): string {
+  if (sd || !p) return 'Sur devis';
+  return new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 0,
+  }).format(p);
+}
+---
+
+<a href={`/produits/${slug}`} class="product-card">
+  <div class="product-image">
+    {images[0] ? (
+      <img src={images[0]} alt={titre} loading="lazy" />
+    ) : (
+      <div class="product-placeholder" style={`background: ${bgGradient}`}></div>
+    )}
+    <span class={`product-badge ${badgeClass}`}>{etatLabel}</span>
+    {!disponible && (
+      <span style="position: absolute; top: 0.75rem; right: 0.75rem; background: rgba(26,20,16,0.8); color: rgba(245,240,232,0.6); font-family: 'DM Mono', monospace; font-size: 0.55rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.2rem 0.5rem;">
+        Vendu
+      </span>
+    )}
+  </div>
+  <h3 class="product-title">{titre}</h3>
+  {artiste && <p class="product-meta">{artiste}</p>}
+  <p class="product-meta">{annee}</p>
+  <p class="product-price">{formatPrix(prix, surDevis)}</p>
+</a>

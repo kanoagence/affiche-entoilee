@@ -1,0 +1,42 @@
+---
+interface Props {
+  slug: string;
+  titre: string;
+  resume: string;
+  date: Date;
+  image?: string;
+  gradient?: string;
+}
+
+const { slug, titre, resume, date, image, gradient } = Astro.props;
+
+const defaultGradients = [
+  'linear-gradient(135deg, #C4622D 0%, #8B6F47 100%)',
+  'linear-gradient(135deg, #B8962E 0%, #2D2520 100%)',
+  'linear-gradient(135deg, #1A1410 0%, #8B6F47 70%, #C4622D 100%)',
+];
+
+// Use a hash from slug to deterministically pick a gradient
+const hashIndex = slug.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % defaultGradients.length;
+const bgGradient = gradient ?? (image ? undefined : defaultGradients[hashIndex]);
+
+const dateFormatted = new Intl.DateTimeFormat('fr-FR', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+}).format(date);
+---
+
+<a href={`/blog/${slug}`} class="blog-card">
+  <div class="blog-image">
+    {image ? (
+      <img src={image} alt={titre} loading="lazy" style="width:100%;height:100%;object-fit:cover;" />
+    ) : (
+      <div style={`width:100%;height:100%;background:${bgGradient}`}></div>
+    )}
+  </div>
+  <p class="blog-date">{dateFormatted}</p>
+  <h3 class="blog-title">{titre}</h3>
+  <p class="blog-excerpt">{resume}</p>
+  <span class="blog-read-more">Lire la suite →</span>
+</a>

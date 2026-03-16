@@ -1,0 +1,222 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PosterCard from '../components/PosterCard.astro';
+import BlogCard from '../components/BlogCard.astro';
+import ContactForm from '../components/ContactForm.astro';
+import { getProduits, getArticles } from '../lib/data';
+
+const produits = await getProduits();
+const articles = await getArticles(true);
+const recentArticles = articles.slice(0, 3);
+const featuredProduits = produits.slice(0, 4);
+
+// Hero poster thumbnails data
+const heroPosters = [
+  {
+    titre: 'Air France',
+    annee: '1949',
+    gradient: 'linear-gradient(160deg, #1A3A5C 0%, #2B6CB0 40%, #C4622D 100%)',
+  },
+  {
+    titre: 'PLM Alpes',
+    annee: '1928',
+    gradient: 'linear-gradient(160deg, #F5F0E8 0%, #8B6F47 40%, #1A1410 100%)',
+  },
+  {
+    titre: 'Normandie',
+    annee: '1935',
+    gradient: 'linear-gradient(160deg, #2D2520 0%, #4A6741 50%, #8B6F47 100%)',
+  },
+  {
+    titre: 'Biarritz',
+    annee: '1932',
+    gradient: 'linear-gradient(160deg, #C4622D 0%, #B8962E 50%, #8B6F47 100%)',
+  },
+];
+---
+
+<BaseLayout title="Hervé — Restauration & Vente d'Affiches Anciennes">
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-content">
+      <p class="hero-eyebrow">Atelier parisien — depuis 2024</p>
+      <h1>
+        L'art de <em>préserver</em><br />
+        l'affiche française
+      </h1>
+      <p class="hero-desc">
+        Restauration, entoilage et vente d'affiches publicitaires originales
+        des années 1900–1960. Chaque pièce est une œuvre graphique,
+        un témoignage vivant de l'histoire du design français.
+      </p>
+      <div class="hero-actions">
+        <a href="/produits" class="btn-primary">Voir la collection</a>
+        <a href="/qui-sommes-nous" class="btn-secondary">L'atelier</a>
+      </div>
+    </div>
+
+    <!-- Hero grid affiches -->
+    <div class="hero-grid">
+      {heroPosters.map((poster, i) => (
+        <div class="poster-thumb" style={i === 0 ? 'grid-row: span 2;' : ''}>
+          <div
+            class="poster-img"
+            style={`background: ${poster.gradient}; min-height: ${i === 0 ? '320px' : '150px'};`}
+          ></div>
+          <div class="poster-info">
+            <div class="poster-info-title">{poster.titre}</div>
+            <div class="poster-info-year">{poster.annee}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- Services -->
+  <section class="section section-alt" id="services">
+    <div class="section-header">
+      <p class="section-eyebrow">Savoir-faire</p>
+      <h2 class="section-title">Ce que nous faisons</h2>
+      <p class="section-sub">
+        Trois métiers complémentaires au service de la préservation
+        du patrimoine graphique français.
+      </p>
+    </div>
+
+    <div class="services-grid">
+      <div class="service-card">
+        <div class="service-number">01 — Restauration</div>
+        <h3 class="service-title">Restauration & Conservation</h3>
+        <p class="service-desc">
+          Réparation des déchirures, consolidation des manques,
+          nettoyage des encres et des supports. Chaque intervention
+          est documentée et réversible selon les normes de conservation.
+        </p>
+      </div>
+      <div class="service-card">
+        <div class="service-number">02 — Entoilage</div>
+        <h3 class="service-title">Entoilage sur Papier Japonais</h3>
+        <p class="service-desc">
+          La technique de référence pour consolider une affiche sans
+          altérer son aspect. Le papier japonais washi, d'une finesse
+          extrême, disparaît visuellement sous l'impression.
+        </p>
+      </div>
+      <div class="service-card">
+        <div class="service-number">03 — Collection</div>
+        <h3 class="service-title">Vente & Expertise</h3>
+        <p class="service-desc">
+          Une sélection d'affiches originales soigneusement choisies
+          pour leur qualité graphique et leur état de conservation.
+          Expertise et certificats d'authenticité sur demande.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Products preview -->
+  <section class="section" id="collection">
+    <div class="section-header">
+      <p class="section-eyebrow">Collection</p>
+      <h2 class="section-title">Affiches disponibles</h2>
+      <p class="section-sub">
+        Pièces sélectionnées pour leur qualité graphique et leur état de conservation.
+      </p>
+    </div>
+
+    <div class="products-grid">
+      {featuredProduits.map((produit) => (
+        <PosterCard
+          slug={produit.slug}
+          titre={produit.titre}
+          annee={produit.annee}
+          etat={produit.etat}
+          prix={produit.prix}
+          surDevis={produit.surDevis}
+          disponible={produit.disponible}
+          images={produit.images}
+          artiste={produit.artiste}
+        />
+      ))}
+    </div>
+
+    <div style="text-align: center;">
+      <a href="/produits" class="btn-secondary">Voir toute la collection →</a>
+    </div>
+  </section>
+
+  <!-- Blog preview -->
+  <section class="section section-alt" id="revue">
+    <div class="section-header">
+      <p class="section-eyebrow">La revue</p>
+      <h2 class="section-title">Articles & expertise</h2>
+      <p class="section-sub">
+        Notes de l'atelier sur l'histoire de l'affiche, les techniques de restauration
+        et les grands maîtres de l'art graphique français.
+      </p>
+    </div>
+
+    <div class="blog-grid">
+      {recentArticles.map((article) => (
+        <BlogCard
+          slug={article.slug}
+          titre={article.titre}
+          resume={article.resume}
+          date={article.date}
+          image={article.image}
+        />
+      ))}
+    </div>
+
+    <div style="text-align: center;">
+      <a href="/blog" class="btn-secondary">Lire tous les articles →</a>
+    </div>
+  </section>
+
+  <!-- Contact -->
+  <section class="section" id="contact">
+    <div class="section-header">
+      <p class="section-eyebrow">Contact</p>
+      <h2 class="section-title">Parlons de vos affiches</h2>
+      <p class="section-sub">
+        Acquisition, restauration, expertise — contactez-nous pour toute demande.
+      </p>
+    </div>
+
+    <div class="contact-grid">
+      <div class="contact-info">
+        <h3>Atelier Hervé Affiches</h3>
+        <p>
+          L'atelier est ouvert sur rendez-vous, à Paris.
+          Nous recevons les particuliers et les professionnels
+          souhaitant faire expertiser, restaurer ou acquérir
+          des affiches anciennes.
+        </p>
+        <p style="margin-top: 1rem;">
+          Pour les pièces fragiles, nous proposons également
+          un service de déplacement pour prise en charge
+          sur site en Île-de-France.
+        </p>
+
+        <div class="contact-detail">
+          <span class="contact-label">Email</span>
+          <a href="mailto:herve@herve-affiches.fr" class="contact-value">
+            herve@herve-affiches.fr
+          </a>
+        </div>
+        <div class="contact-detail" style="margin-top: 1rem;">
+          <span class="contact-label">Téléphone</span>
+          <a href="tel:+33612345678" class="contact-value">+33 6 12 34 56 78</a>
+        </div>
+        <div class="contact-detail" style="margin-top: 1rem;">
+          <span class="contact-label">Horaires</span>
+          <span class="contact-value">Sur rendez-vous — Lun. au Sam.</span>
+        </div>
+      </div>
+
+      <div>
+        <ContactForm />
+      </div>
+    </div>
+  </section>
+</BaseLayout>

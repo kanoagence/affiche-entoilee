@@ -1,0 +1,107 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PosterCard from '../../components/PosterCard.astro';
+import { getProduits } from '../../lib/data';
+
+const produits = await getProduits();
+---
+
+<BaseLayout
+  title="Collection — Hervé Affiches"
+  description="Découvrez notre sélection d'affiches publicitaires originales françaises des années 1900–1960, restaurées et entoilées avec soin."
+>
+  <!-- Header -->
+  <section
+    style="padding: 10rem 3rem 4rem; background: linear-gradient(160deg, var(--cream) 0%, var(--ivory) 100%); border-bottom: 1px solid rgba(139,111,71,0.2);"
+  >
+    <div style="max-width: 700px; margin: 0 auto; text-align: center;">
+      <p class="section-eyebrow" style="justify-content:center;">Collection</p>
+      <h1 style="font-size: clamp(2rem, 4vw, 3rem); margin: 1rem 0 1.5rem;">
+        Affiches disponibles
+      </h1>
+      <p style="font-size: 1.1rem; color: var(--sepia); font-weight: 300; line-height: 1.8;">
+        Pièces originales soigneusement sélectionnées et restaurées.
+        Toutes les affiches sont accompagnées d'une documentation complète.
+      </p>
+    </div>
+  </section>
+
+  <!-- Filter bar -->
+  <section class="section" style="padding-bottom: 0;">
+    <div class="filter-bar" id="filters">
+      <button class="filter-btn active" data-filter="all">Tout voir</button>
+      <button class="filter-btn" data-filter="entoilee">Entoilées</button>
+      <button class="filter-btn" data-filter="restauree">Restaurées</button>
+      <button class="filter-btn" data-filter="a-restaurer">À restaurer</button>
+    </div>
+  </section>
+
+  <!-- Products grid -->
+  <section class="section" style="padding-top: 2rem;">
+    {produits.length === 0 ? (
+      <div style="text-align: center; color: var(--sepia); padding: 4rem 0;">
+        <p style="font-size: 1.2rem;">Aucune affiche disponible pour le moment.</p>
+        <p style="margin-top: 0.5rem; font-size: 0.95rem;">Revenez bientôt — de nouvelles pièces arrivent régulièrement.</p>
+      </div>
+    ) : (
+      <div class="products-grid" id="products-grid">
+        {produits.map((produit) => (
+          <div class="product-item" data-etat={produit.etat}>
+            <PosterCard
+              slug={produit.slug}
+              titre={produit.titre}
+              annee={produit.annee}
+              etat={produit.etat}
+              prix={produit.prix}
+              surDevis={produit.surDevis}
+              disponible={produit.disponible}
+              images={produit.images}
+              artiste={produit.artiste}
+            />
+          </div>
+        ))}
+      </div>
+    )}
+
+    <p
+      id="no-results"
+      style="display:none; text-align:center; color:var(--sepia); padding:2rem 0; font-size:1.05rem;"
+    >
+      Aucune affiche dans cette catégorie pour le moment.
+    </p>
+  </section>
+
+  <!-- Contact CTA -->
+  <section class="section section-alt" style="text-align: center;">
+    <p style="font-size: 1.05rem; color: var(--sepia); margin-bottom: 1.5rem; font-weight: 300;">
+      Vous recherchez une affiche spécifique ? Nous pouvons vous aider.
+    </p>
+    <a href="/contact" class="btn-primary">Contacter l'atelier</a>
+  </section>
+</BaseLayout>
+
+<script>
+  const filters = document.querySelectorAll<HTMLButtonElement>('.filter-btn');
+  const items = document.querySelectorAll<HTMLElement>('.product-item');
+  const noResults = document.getElementById('no-results');
+
+  filters.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      filters.forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const filter = btn.dataset.filter;
+      let visible = 0;
+
+      items.forEach((item) => {
+        const show = filter === 'all' || item.dataset.etat === filter;
+        item.style.display = show ? '' : 'none';
+        if (show) visible++;
+      });
+
+      if (noResults) {
+        noResults.style.display = visible === 0 ? 'block' : 'none';
+      }
+    });
+  });
+</script>

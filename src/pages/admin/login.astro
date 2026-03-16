@@ -1,0 +1,103 @@
+---
+import '../../styles/globals.css';
+import { verifyCredentials, createSession } from '../../lib/auth';
+
+// Redirect if already logged in
+const existingSession = Astro.cookies.get('session')?.value;
+if (existingSession) {
+  return Astro.redirect('/admin');
+}
+
+let error = '';
+
+if (Astro.request.method === 'POST') {
+  const data = await Astro.request.formData();
+  const email = (data.get('email') as string)?.trim().toLowerCase();
+  const password = data.get('password') as string;
+
+  if (!email || !password) {
+    error = 'Veuillez remplir tous les champs.';
+  } else if (verifyCredentials(email, password)) {
+    const token = createSession(email);
+    Astro.cookies.set('session', token, {
+      httpOnly: true,
+      path: '/',
+      maxAge: 86400,
+      sameSite: 'lax',
+    });
+    return Astro.redirect('/admin');
+  } else {
+    error = 'Email ou mot de passe incorrect.';
+  }
+}
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Connexion — Hervé Affiches Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="login-container">
+      <div class="login-box">
+        <h1 class="login-title">Hervé Affiches</h1>
+        <p class="login-sub">Administration — Accès réservé</p>
+
+        {error && <div class="login-error">{error}</div>}
+
+        <form method="POST" action="/admin/login">
+          <div class="admin-form-group">
+            <label class="admin-label" for="email">Email</label>
+            <input
+              class="admin-input"
+              type="email"
+              id="email"
+              name="email"
+              required
+              autocomplete="email"
+              placeholder="votre@email.fr"
+            />
+          </div>
+
+          <div class="admin-form-group">
+            <label class="admin-label" for="password">Mot de passe</label>
+            <input
+              class="admin-input"
+              type="password"
+              id="password"
+              name="password"
+              required
+              autocomplete="current-password"
+              placeholder="••••••••"
+            />
+          </div>
+
+          <button
+            type="submit"
+            class="admin-btn admin-btn-primary"
+            style="width: 100%; text-align: center; padding: 0.75rem; font-size: 0.7rem; margin-top: 0.5rem;"
+          >
+            Se connecter
+          </button>
+        </form>
+
+        <p style="text-align: center; margin-top: 1.5rem;">
+          <a
+            href="/"
+            style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(245,240,232,0.3); transition: color 0.2s;"
+          >
+            ← Retour au site
+          </a>
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

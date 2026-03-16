@@ -1,0 +1,11 @@
+---
+import { destroySession } from '../../lib/auth';
+
+const token = Astro.cookies.get('session')?.value;
+if (token) {
+  destroySession(token);
+  Astro.cookies.delete('session', { path: '/' });
+}
+
+return Astro.redirect('/admin/login');
+---

@@ -1,0 +1,97 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import ContactForm from '../components/ContactForm.astro';
+---
+
+<BaseLayout
+  title="Contact — Hervé Affiches"
+  description="Contactez l'atelier Hervé Affiches pour toute demande d'acquisition, de restauration ou d'expertise d'affiches anciennes."
+>
+  <!-- Header -->
+  <section
+    style="padding: 10rem 3rem 5rem; background: linear-gradient(160deg, var(--cream) 0%, var(--ivory) 100%); border-bottom: 1px solid rgba(139,111,71,0.2);"
+  >
+    <div style="max-width: 700px; margin: 0 auto; text-align: center;">
+      <p class="section-eyebrow" style="justify-content:center;">Contact</p>
+      <h1 style="font-size: clamp(2rem, 4vw, 3rem); margin: 1rem 0 1.5rem;">
+        Parlons de vos affiches
+      </h1>
+      <p style="font-size: 1.1rem; color: var(--sepia); font-weight: 300; line-height: 1.8;">
+        Acquisition, restauration, expertise — nous répondons à toutes
+        vos demandes dans un délai de 48 heures ouvrées.
+      </p>
+    </div>
+  </section>
+
+  <!-- Contact content -->
+  <section class="section">
+    <div class="contact-grid">
+      <!-- Info left -->
+      <div class="contact-info">
+        <h2 style="font-size: 1.6rem; margin-bottom: 1.25rem;">L'atelier</h2>
+        <p>
+          L'atelier reçoit sur rendez-vous uniquement. Avant votre venue,
+          envoyez-nous de bonnes photos de votre pièce (recto, verso,
+          détails des dommages éventuels) pour une première évaluation.
+        </p>
+        <p style="margin-top: 1rem;">
+          Pour les collectionneurs et galeries, nous proposons également
+          des expertises à domicile sur demande, en Île-de-France et
+          dans toute la France pour les ensembles importants.
+        </p>
+
+        <div style="margin-top: 2.5rem; display: flex; flex-direction: column; gap: 1.25rem;">
+          <div class="contact-detail">
+            <span class="contact-label">Email</span>
+            <a href="mailto:herve@herve-affiches.fr" class="contact-value" style="transition: color 0.2s;">
+              herve@herve-affiches.fr
+            </a>
+          </div>
+          <div class="contact-detail">
+            <span class="contact-label">Téléphone</span>
+            <a href="tel:+33612345678" class="contact-value" style="transition: color 0.2s;">
+              +33 6 12 34 56 78
+            </a>
+          </div>
+          <div class="contact-detail">
+            <span class="contact-label">Localisation</span>
+            <span class="contact-value">Paris, France</span>
+          </div>
+          <div class="contact-detail">
+            <span class="contact-label">Horaires</span>
+            <span class="contact-value">
+              Lundi – Samedi<br />
+              Sur rendez-vous
+            </span>
+          </div>
+        </div>
+
+        <!-- Services reminder -->
+        <div style="margin-top: 2.5rem; padding: 1.25rem; background: var(--ivory); border-left: 3px solid var(--gold);">
+          <p style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); margin-bottom: 0.75rem;">
+            Nos services
+          </p>
+          <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.5rem;">
+            {[
+              'Restauration & conservation',
+              'Entoilage sur papier japonais',
+              'Expertise & certificats d\'authenticité',
+              'Vente d\'affiches originales',
+              'Conseil en acquisition',
+            ].map(s => (
+              <li style="font-size: 0.9rem; color: var(--sepia); display: flex; align-items: baseline; gap: 0.5rem;">
+                <span style="color: var(--rust); font-size: 0.7rem;">→</span>
+                {s}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <!-- Form right -->
+      <div>
+        <ContactForm />
+      </div>
+    </div>
+  </section>
+</BaseLayout>

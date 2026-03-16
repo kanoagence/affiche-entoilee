@@ -1,0 +1,171 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getProduits, getProduit, formatPrix, etatLabel } from '../../lib/data';
+
+const { slug } = Astro.params;
+
+if (!slug) {
+  return Astro.redirect('/produits');
+}
+
+const produit = await getProduit(slug);
+
+if (!produit) {
+  return new Response(null, { status: 404 });
+}
+
+const badgeClass = {
+  entoilee: 'badge-entoilee',
+  restauree: 'badge-restauree',
+  'a-restaurer': 'badge-a-restaurer',
+}[produit.etat];
+
+const defaultGradients: Record<string, string> = {
+  entoilee: 'linear-gradient(160deg, #C4622D 0%, #8B6F47 50%, #1A1410 100%)',
+  restauree: 'linear-gradient(160deg, #B8962E 0%, #8B6F47 50%, #2D2520 100%)',
+  'a-restaurer': 'linear-gradient(160deg, #2D2520 0%, #8B6F47 60%, #C4622D 100%)',
+};
+
+const bgGradient = produit.images[0] ? undefined : defaultGradients[produit.etat];
+
+// Subject for contact form
+const contactSubject = `acquisition`;
+const contactMessage = `Bonjour,\n\nJe suis intéressé(e) par l'affiche "${produit.titre}" (${produit.annee}).`;
+---
+
+<BaseLayout
+  title={`${produit.titre} — Hervé Affiches`}
+  description={produit.description}
+>
+  <!-- Back link -->
+  <div style="padding: 7rem 3rem 0; max-width: 1200px; margin: 0 auto;">
+    <a
+      href="/produits"
+      style="font-family: 'DM Mono', monospace; font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--sepia); display: inline-flex; align-items: center; gap: 0.4rem; transition: color 0.2s;"
+    >
+      ← Retour à la collection
+    </a>
+  </div>
+
+  <!-- Product detail -->
+  <section style="padding: 2rem 3rem 6rem; max-width: 1200px; margin: 0 auto;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5rem; align-items: start;">
+      <!-- Image -->
+      <div style="position: sticky; top: 6rem;">
+        <div
+          style="width: 100%; aspect-ratio: 2/3; position: relative; overflow: hidden; border-radius: 2px; box-shadow: 0 20px 60px rgba(26,20,16,0.15);"
+        >
+          {produit.images[0] ? (
+            <img
+              src={produit.images[0]}
+              alt={produit.titre}
+              style="width: 100%; height: 100%; object-fit: cover;"
+            />
+          ) : (
+            <div style={`width: 100%; height: 100%; background: ${bgGradient};`}></div>
+          )}
+          <span class={`product-badge ${badgeClass}`} style="font-size: 0.65rem;">
+            {etatLabel(produit.etat)}
+          </span>
+          {!produit.disponible && (
+            <div
+              style="position: absolute; inset: 0; background: rgba(26,20,16,0.6); display: flex; align-items: center; justify-content: center;"
+            >
+              <span style="font-family: 'Playfair Display', serif; font-size: 1.5rem; font-style: italic; color: rgba(245,240,232,0.7);">Vendu</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <!-- Info -->
+      <div>
+        <p class="section-eyebrow" style="margin-bottom: 0.5rem;">Affiche originale</p>
+        <h1 style="font-size: clamp(1.5rem, 3vw, 2.2rem); line-height: 1.2; margin-bottom: 0.5rem;">
+          {produit.titre}
+        </h1>
+
+        <!-- Price -->
+        <div style="margin: 1.5rem 0; padding: 1.25rem; background: var(--ivory); border-left: 3px solid var(--rust);">
+          <div style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--sepia); margin-bottom: 0.25rem;">Prix</div>
+          <div style="font-size: 1.75rem; color: var(--rust); font-weight: 500;">
+            {formatPrix(produit.prix, produit.surDevis)}
+          </div>
+          {produit.surDevis && (
+            <p style="font-size: 0.85rem; color: var(--sepia); margin-top: 0.25rem;">Contactez-nous pour obtenir un prix</p>
+          )}
+        </div>
+
+        <!-- Details table -->
+        <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 2rem;">
+          {produit.artiste && (
+            <div style="display: grid; grid-template-columns: 130px 1fr; gap: 0.5rem; align-items: baseline; padding-bottom: 0.75rem; border-bottom: 1px solid rgba(139,111,71,0.1);">
+              <span style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sepia);">Artiste</span>
+              <span style="font-size: 1rem; color: var(--dark);">{produit.artiste}</span>
+            </div>
+          )}
+          <div style="display: grid; grid-template-columns: 130px 1fr; gap: 0.5rem; align-items: baseline; padding-bottom: 0.75rem; border-bottom: 1px solid rgba(139,111,71,0.1);">
+            <span style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sepia);">Année</span>
+            <span style="font-size: 1rem; color: var(--dark);">{produit.annee}</span>
+          </div>
+          {produit.dimensions && (
+            <div style="display: grid; grid-template-columns: 130px 1fr; gap: 0.5rem; align-items: baseline; padding-bottom: 0.75rem; border-bottom: 1px solid rgba(139,111,71,0.1);">
+              <span style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sepia);">Dimensions</span>
+              <span style="font-size: 1rem; color: var(--dark);">{produit.dimensions}</span>
+            </div>
+          )}
+          <div style="display: grid; grid-template-columns: 130px 1fr; gap: 0.5rem; align-items: baseline; padding-bottom: 0.75rem; border-bottom: 1px solid rgba(139,111,71,0.1);">
+            <span style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sepia);">État</span>
+            <span class={`product-badge ${badgeClass}`} style="position:static; font-size:0.65rem;">
+              {etatLabel(produit.etat)}
+            </span>
+          </div>
+          {produit.imprimeur && (
+            <div style="display: grid; grid-template-columns: 130px 1fr; gap: 0.5rem; align-items: baseline; padding-bottom: 0.75rem; border-bottom: 1px solid rgba(139,111,71,0.1);">
+              <span style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sepia);">Imprimeur</span>
+              <span style="font-size: 1rem; color: var(--dark);">{produit.imprimeur}</span>
+            </div>
+          )}
+        </div>
+
+        <!-- Description -->
+        <p style="font-size: 1.05rem; color: var(--sepia); line-height: 1.8; font-weight: 300; margin-bottom: 2rem;">
+          {produit.description}
+        </p>
+
+        <!-- CTA -->
+        {produit.disponible ? (
+          <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+            <a
+              href={`/contact?sujet=${contactSubject}&affiche=${encodeURIComponent(produit.titre)}`}
+              class="btn-primary"
+              style="text-align: center;"
+            >
+              Nous contacter pour cette affiche
+            </a>
+            <p style="font-size: 0.8rem; color: var(--sepia); text-align: center; opacity: 0.7;">
+              Réponse garantie sous 48h · Expédition sécurisée
+            </p>
+          </div>
+        ) : (
+          <div style="background: var(--ivory); padding: 1.25rem; text-align: center; border: 1px solid rgba(139,111,71,0.2);">
+            <p style="color: var(--sepia); font-size: 0.95rem;">Cette affiche n'est plus disponible.</p>
+            <a href="/contact" style="display: inline-block; margin-top: 0.75rem; font-family: 'DM Mono', monospace; font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--rust);">
+              Nous demander une pièce similaire →
+            </a>
+          </div>
+        )}
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  @media (max-width: 768px) {
+    section > div {
+      grid-template-columns: 1fr !important;
+    }
+    div[style*='position: sticky'] {
+      position: static !important;
+    }
+  }
+</style>

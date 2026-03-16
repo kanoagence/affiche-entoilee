@@ -1,0 +1,345 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { writeFile, mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
+import * as XLSX from 'xlsx';
+
+// Colonnes Excel attendues (en-têtes)
+// titre | description | annee | dimensions | etat | prix | surDevis | disponible | artiste | imprimeur
+
+type ImportResult = {
+  success: number;
+  errors: { row: number; titre: string; message: string }[];
+  created: string[];
+};
+
+let result: ImportResult | null = null;
+let globalError = '';
+
+function slugify(str: string): string {
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function normalizeEtat(val: string): string | null {
+  const v = val.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (v.includes('entoil')) return 'entoilee';
+  if (v.includes('restaur') && !v.includes('a restaur') && !v.includes('à restaur')) return 'restauree';
+  if (v.includes('a restaur') || v.includes('restaurer')) return 'a-restaurer';
+  return null;
+}
+
+if (Astro.request.method === 'POST') {
+  try {
+    const formData = await Astro.request.formData();
+    const file = formData.get('fichier') as File | null;
+
+    if (!file || file.size === 0) {
+      globalError = 'Aucun fichier sélectionné.';
+    } else {
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      if (!['xlsx', 'xls', 'csv'].includes(ext ?? '')) {
+        globalError = 'Format non supporté. Utilisez .xlsx, .xls ou .csv.';
+      } else {
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows: Record<string, string>[] = XLSX.utils.sheet_to_json(sheet, {
+          defval: '',
+          raw: false,
+        });
+
+        const contentDir = join(process.cwd(), 'src', 'content', 'produits');
+        await mkdir(contentDir, { recursive: true });
+
+        result = { success: 0, errors: [], created: [] };
+
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i];
+          const rowNum = i + 2; // Excel row (1=header, 2=first data row)
+
+          // Normalise les clés (insensible à la casse et aux accents)
+          const get = (keys: string[]): string => {
+            for (const key of keys) {
+              const found = Object.keys(row).find(
+                (k) =>
+                  k.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') ===
+                  key.toLowerCase()
+              );
+              if (found && row[found]?.toString().trim()) return row[found].toString().trim();
+            }
+            return '';
+          };
+
+          const titre = get(['titre', 'title', 'nom']);
+          const description = get(['description', 'desc']);
+          const annee = get(['annee', 'année', 'year', 'date']);
+          const etatRaw = get(['etat', 'état', 'statut', 'status', 'condition']);
+          const dimensionsRaw = get(['dimensions', 'taille', 'size', 'format']);
+          const prixRaw = get(['prix', 'price', 'tarif']);
+          const surDevisRaw = get(['surdevis', 'sur devis', 'devis', 'ondemand']);
+          const disponibleRaw = get(['disponible', 'dispo', 'available', 'en ligne']);
+          const artiste = get(['artiste', 'artist', 'auteur', 'author']);
+          const imprimeur = get(['imprimeur', 'printer', 'editeur', 'éditeur']);
+
+          // Validations
+          if (!titre) {
+            result.errors.push({ row: rowNum, titre: '(vide)', message: 'Titre manquant' });
+            continue;
+          }
+          if (!description) {
+            result.errors.push({ row: rowNum, titre, message: 'Description manquante' });
+            continue;
+          }
+          if (!annee) {
+            result.errors.push({ row: rowNum, titre, message: 'Année manquante' });
+            continue;
+          }
+          if (!etatRaw) {
+            result.errors.push({ row: rowNum, titre, message: 'État manquant (entoilee / restauree / a-restaurer)' });
+            continue;
+          }
+
+          const etat = normalizeEtat(etatRaw);
+          if (!etat) {
+            result.errors.push({
+              row: rowNum,
+              titre,
+              message: `État non reconnu : "${etatRaw}". Valeurs acceptées : Entoilée, Restaurée, À restaurer`,
+            });
+            continue;
+          }
+
+          const prix = prixRaw ? parseInt(prixRaw.replace(/[^\d]/g, ''), 10) : undefined;
+          const surDevis =
+            surDevisRaw.toLowerCase() === 'oui' ||
+            surDevisRaw.toLowerCase() === 'yes' ||
+            surDevisRaw === '1' ||
+            surDevisRaw.toLowerCase() === 'true';
+          const disponible =
+            disponibleRaw === '' ||
+            disponibleRaw.toLowerCase() === 'oui' ||
+            disponibleRaw.toLowerCase() === 'yes' ||
+            disponibleRaw === '1' ||
+            disponibleRaw.toLowerCase() === 'true';
+
+          const slug = slugify(titre);
+          const produitData = {
+            titre,
+            description,
+            annee,
+            ...(dimensionsRaw && { dimensions: dimensionsRaw }),
+            etat,
+            ...(prix && !isNaN(prix) && !surDevis ? { prix } : {}),
+            surDevis,
+            disponible,
+            images: [],
+            ...(artiste && { artiste }),
+            ...(imprimeur && { imprimeur }),
+          };
+
+          const filePath = join(contentDir, `${slug}.json`);
+          await writeFile(filePath, JSON.stringify(produitData, null, 2), 'utf-8');
+          result.success++;
+          result.created.push(titre);
+        }
+      }
+    }
+  } catch (e) {
+    console.error(e);
+    globalError = `Erreur lors du traitement : ${(e as Error).message}`;
+  }
+}
+---
+
+<AdminLayout title="Import Excel — Admin Hervé" activeSection="produits">
+  <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(245,240,232,0.08);">
+    <a href="/admin/produits" class="admin-btn admin-btn-secondary" style="padding: 0.4rem 0.8rem;">← Retour</a>
+    <h1 class="admin-page-title" style="margin: 0; border: none; padding: 0;">Import via Excel</h1>
+  </div>
+
+  {globalError && (
+    <div class="alert alert-error" style="margin-bottom: 2rem;">{globalError}</div>
+  )}
+
+  {result && (
+    <div class="admin-card" style="margin-bottom: 2rem; padding: 2rem;">
+      <h2 style="font-family: 'Playfair Display', serif; font-size: 1.3rem; color: var(--cream); margin-bottom: 1.5rem;">
+        Résultat de l'import
+      </h2>
+
+      {result.success > 0 && (
+        <div class="alert alert-success" style="margin-bottom: 1rem;">
+          ✓ {result.success} produit{result.success > 1 ? 's' : ''} importé{result.success > 1 ? 's' : ''} avec succès
+        </div>
+      )}
+
+      {result.created.length > 0 && (
+        <div style="margin-bottom: 1.5rem;">
+          <p style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(245,240,232,0.4); margin-bottom: 0.75rem;">Produits créés</p>
+          <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.4rem;">
+            {result.created.map((titre) => (
+              <li style="font-size: 0.9rem; color: rgba(245,240,232,0.7);">
+                <span style="color: #4ade80; margin-right: 0.5rem;">✓</span>{titre}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {result.errors.length > 0 && (
+        <div>
+          <p style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(245,240,232,0.4); margin-bottom: 0.75rem;">{result.errors.length} ligne{result.errors.length > 1 ? 's' : ''} ignorée{result.errors.length > 1 ? 's' : ''}</p>
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Ligne</th>
+                <th>Titre</th>
+                <th>Problème</th>
+              </tr>
+            </thead>
+            <tbody>
+              {result.errors.map((err) => (
+                <tr>
+                  <td style="font-family: 'DM Mono', monospace; opacity: 0.5;">#{err.row}</td>
+                  <td style="opacity: 0.7;">{err.titre}</td>
+                  <td style="color: #f87171;">{err.message}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {result.success > 0 && (
+        <div style="margin-top: 1.5rem;">
+          <a href="/admin/produits" class="admin-btn admin-btn-primary">Voir les produits →</a>
+        </div>
+      )}
+    </div>
+  )}
+
+  <!-- Formulaire d'upload -->
+  {!result && (
+    <div class="admin-card" style="padding: 2rem; margin-bottom: 2rem;">
+      <h2 style="font-family: 'Playfair Display', serif; font-size: 1.3rem; color: var(--cream); margin-bottom: 0.5rem;">
+        Importer un fichier
+      </h2>
+      <p style="color: rgba(245,240,232,0.5); font-size: 0.9rem; margin-bottom: 2rem;">
+        Formats acceptés : <strong style="color: var(--gold-light);">.xlsx</strong>, <strong style="color: var(--gold-light);">.xls</strong>, <strong style="color: var(--gold-light);">.csv</strong>
+      </p>
+
+      <form method="POST" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 1.5rem;">
+        <div class="form-group" style="max-width: 500px;">
+          <label for="fichier">Fichier Excel / CSV</label>
+          <input
+            type="file"
+            id="fichier"
+            name="fichier"
+            accept=".xlsx,.xls,.csv"
+            required
+            style="padding: 0.75rem; background: rgba(245,240,232,0.05); border: 2px dashed rgba(245,240,232,0.2); border-radius: 2px; color: var(--cream); cursor: pointer; font-family: 'DM Mono', monospace; font-size: 0.7rem;"
+          />
+        </div>
+        <button type="submit" class="admin-btn admin-btn-primary" style="align-self: flex-start;">
+          Importer →
+        </button>
+      </form>
+    </div>
+  )}
+
+  <!-- Format attendu -->
+  <div class="admin-card" style="padding: 2rem;">
+    <h2 style="font-family: 'Playfair Display', serif; font-size: 1.2rem; color: var(--cream); margin-bottom: 1rem;">
+      Format du fichier
+    </h2>
+    <p style="color: rgba(245,240,232,0.5); font-size: 0.85rem; margin-bottom: 1.5rem;">
+      La première ligne doit contenir les en-têtes. Les colonnes peuvent être dans n'importe quel ordre.
+    </p>
+
+    <div style="overflow-x: auto;">
+      <table class="admin-table" style="font-size: 0.75rem;">
+        <thead>
+          <tr>
+            <th>Colonne</th>
+            <th>Obligatoire</th>
+            <th>Valeurs acceptées</th>
+            <th>Exemple</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code style="color: var(--gold-light);">titre</code></td>
+            <td><span style="color: #f87171;">Oui</span></td>
+            <td style="opacity: 0.6;">Texte libre</td>
+            <td style="opacity: 0.6;">Air France — Paris New York</td>
+          </tr>
+          <tr>
+            <td><code style="color: var(--gold-light);">description</code></td>
+            <td><span style="color: #f87171;">Oui</span></td>
+            <td style="opacity: 0.6;">Texte libre</td>
+            <td style="opacity: 0.6;">Affiche originale chromolithographie...</td>
+          </tr>
+          <tr>
+            <td><code style="color: var(--gold-light);">annee</code></td>
+            <td><span style="color: #f87171;">Oui</span></td>
+            <td style="opacity: 0.6;">Texte libre</td>
+            <td style="opacity: 0.6;">c. 1949</td>
+          </tr>
+          <tr>
+            <td><code style="color: var(--gold-light);">etat</code></td>
+            <td><span style="color: #f87171;">Oui</span></td>
+            <td style="opacity: 0.6;">Entoilée / Restaurée / À restaurer</td>
+            <td style="opacity: 0.6;">Entoilée</td>
+          </tr>
+          <tr>
+            <td><code style="color: var(--gold-light);">prix</code></td>
+            <td><span style="color: rgba(245,240,232,0.4);">Non</span></td>
+            <td style="opacity: 0.6;">Nombre entier</td>
+            <td style="opacity: 0.6;">2400</td>
+          </tr>
+          <tr>
+            <td><code style="color: var(--gold-light);">surDevis</code></td>
+            <td><span style="color: rgba(245,240,232,0.4);">Non</span></td>
+            <td style="opacity: 0.6;">oui / non (défaut : non)</td>
+            <td style="opacity: 0.6;">non</td>
+          </tr>
+          <tr>
+            <td><code style="color: var(--gold-light);">disponible</code></td>
+            <td><span style="color: rgba(245,240,232,0.4);">Non</span></td>
+            <td style="opacity: 0.6;">oui / non (défaut : oui)</td>
+            <td style="opacity: 0.6;">oui</td>
+          </tr>
+          <tr>
+            <td><code style="color: var(--gold-light);">dimensions</code></td>
+            <td><span style="color: rgba(245,240,232,0.4);">Non</span></td>
+            <td style="opacity: 0.6;">Texte libre</td>
+            <td style="opacity: 0.6;">62 × 100 cm</td>
+          </tr>
+          <tr>
+            <td><code style="color: var(--gold-light);">artiste</code></td>
+            <td><span style="color: rgba(245,240,232,0.4);">Non</span></td>
+            <td style="opacity: 0.6;">Texte libre</td>
+            <td style="opacity: 0.6;">Lucien Boucher</td>
+          </tr>
+          <tr>
+            <td><code style="color: var(--gold-light);">imprimeur</code></td>
+            <td><span style="color: rgba(245,240,232,0.4);">Non</span></td>
+            <td style="opacity: 0.6;">Texte libre</td>
+            <td style="opacity: 0.6;">Imp. Perceval, Paris</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-top: 1.5rem;">
+      <a href="/admin/produits/template" class="admin-btn admin-btn-secondary" style="font-size: 0.6rem;">
+        ↓ Télécharger le template Excel
+      </a>
+    </div>
+  </div>
+</AdminLayout>

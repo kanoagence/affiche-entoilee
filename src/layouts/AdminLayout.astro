@@ -1,0 +1,76 @@
+---
+import '../styles/globals.css';
+
+interface Props {
+  title?: string;
+  activeSection?: 'dashboard' | 'produits' | 'blog';
+}
+
+const {
+  title = 'Administration — Hervé Affiches',
+  activeSection = 'dashboard',
+} = Astro.props;
+
+const userName = (Astro.locals as any).userName ?? Astro.locals.user ?? 'Admin';
+const currentPath = Astro.url.pathname;
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="admin-body">
+    <!-- Header -->
+    <header class="admin-header">
+      <div class="admin-logo">Hervé — Administration</div>
+      <div class="admin-user">
+        <span style="color: rgba(245,240,232,0.6)">Connecté : <strong style="color: var(--gold-light)">{userName}</strong></span>
+        <a href="/admin/logout" class="admin-logout">Déconnexion →</a>
+      </div>
+    </header>
+
+    <!-- Sub-nav -->
+    <nav class="admin-nav">
+      <a
+        href="/admin"
+        class={currentPath === '/admin' || currentPath === '/admin/' ? 'active' : ''}
+      >
+        Tableau de bord
+      </a>
+      <a
+        href="/admin/produits"
+        class={currentPath.startsWith('/admin/produits') ? 'active' : ''}
+      >
+        Produits
+      </a>
+      <a
+        href="/admin/blog"
+        class={currentPath.startsWith('/admin/blog') ? 'active' : ''}
+      >
+        Blog
+      </a>
+      <a
+        href="/"
+        target="_blank"
+        rel="noopener"
+        style="margin-left: auto; opacity: 0.5; font-size: 0.6rem;"
+      >
+        ↗ Voir le site
+      </a>
+    </nav>
+
+    <!-- Main content -->
+    <main class="admin-main">
+      <slot />
+    </main>
+  </body>
+</html>

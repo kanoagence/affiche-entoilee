@@ -1,0 +1,97 @@
+---
+// ContactForm component — can receive an optional subject pre-fill
+interface Props {
+  subject?: string;
+  compact?: boolean;
+}
+
+const { subject = '', compact = false } = Astro.props;
+
+// Handle form POST
+let success = false;
+let error = '';
+
+if (Astro.request.method === 'POST') {
+  try {
+    const formData = await Astro.request.formData();
+    const nom = formData.get('nom') as string;
+    const email = formData.get('email') as string;
+    const sujet = formData.get('sujet') as string;
+    const message = formData.get('message') as string;
+
+    if (!nom || !email || !message) {
+      error = 'Veuillez remplir tous les champs obligatoires.';
+    } else {
+      // In production, send email here (nodemailer, resend, etc.)
+      // For now, just mark as success
+      success = true;
+    }
+  } catch (e) {
+    error = 'Une erreur est survenue. Veuillez réessayer.';
+  }
+}
+---
+
+{success ? (
+  <div class="alert alert-success" style="text-align:center; padding: 2rem;">
+    <p style="font-family: 'Playfair Display', serif; font-size: 1.2rem; margin-bottom: 0.5rem;">Message envoyé !</p>
+    <p style="font-size: 0.9rem; opacity: 0.8;">Nous vous répondrons dans les meilleurs délais.</p>
+  </div>
+) : (
+  <form method="POST" action="#contact-form" id="contact-form">
+    {error && <div class="alert alert-error">{error}</div>}
+
+    <div class="form-group">
+      <label class="form-label" for="nom">Nom *</label>
+      <input
+        class="form-input"
+        type="text"
+        id="nom"
+        name="nom"
+        required
+        placeholder="Votre nom"
+      />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="email">Email *</label>
+      <input
+        class="form-input"
+        type="email"
+        id="email"
+        name="email"
+        required
+        placeholder="votre@email.fr"
+      />
+    </div>
+
+    {!compact && (
+      <div class="form-group">
+        <label class="form-label" for="sujet">Sujet</label>
+        <select class="form-select" id="sujet" name="sujet">
+          <option value="">Choisir un sujet...</option>
+          <option value="acquisition" selected={subject === 'acquisition'}>Acquisition d'une affiche</option>
+          <option value="restauration">Restauration / Expertise</option>
+          <option value="vente">Vendre une affiche</option>
+          <option value="autre">Autre demande</option>
+        </select>
+      </div>
+    )}
+
+    <div class="form-group">
+      <label class="form-label" for="message">Message *</label>
+      <textarea
+        class="form-textarea"
+        id="message"
+        name="message"
+        required
+        rows="5"
+        placeholder="Décrivez votre demande..."
+      ></textarea>
+    </div>
+
+    <button type="submit" class="btn-primary" style="width: 100%; text-align: center;">
+      Envoyer le message
+    </button>
+  </form>
+)}

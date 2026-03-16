@@ -1,0 +1,139 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="L'Atelier — Hervé Affiches"
+  description="Découvrez l'atelier Hervé Affiches, spécialisé depuis 2024 dans la restauration, l'entoilage et l'expertise d'affiches publicitaires françaises."
+>
+  <!-- Page header -->
+  <section
+    style="padding: 10rem 3rem 5rem; background: linear-gradient(160deg, var(--cream) 0%, var(--ivory) 100%); border-bottom: 1px solid rgba(139,111,71,0.2);"
+  >
+    <div style="max-width: 700px; margin: 0 auto; text-align: center;">
+      <p class="section-eyebrow" style="justify-content:center; display:flex; align-items:center; gap:0.5rem;">
+        <span style="display:inline-block;width:2rem;height:1px;background:var(--rust);"></span>
+        L'atelier
+      </p>
+      <h1 style="font-size: clamp(2rem, 4vw, 3rem); margin: 1rem 0 1.5rem;">
+        Un atelier au service<br />
+        <em style="color: var(--rust);">du patrimoine graphique</em>
+      </h1>
+      <p style="font-size: 1.15rem; color: var(--sepia); font-weight: 300; line-height: 1.8;">
+        Fondé en 2024, l'atelier Hervé Affiches est né d'une passion de longue
+        date pour les arts graphiques du XXe siècle et d'une conviction :
+        ces œuvres méritent d'être préservées, transmises, admirées.
+      </p>
+    </div>
+  </section>
+
+  <!-- Story section -->
+  <section class="section">
+    <div style="max-width: 960px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center;">
+      <div>
+        <!-- Placeholder portrait -->
+        <div style="width: 100%; aspect-ratio: 3/4; background: linear-gradient(160deg, var(--dark) 0%, var(--sepia) 60%, var(--rust) 100%); border-radius: 2px;"></div>
+      </div>
+      <div>
+        <p class="section-eyebrow">Le fondateur</p>
+        <h2 style="font-size: 2rem; margin-bottom: 1.5rem;">Hervé</h2>
+        <p style="color: var(--sepia); font-size: 1.05rem; line-height: 1.85; font-weight: 300; margin-bottom: 1.25rem;">
+          Restaurateur de papiers anciens de formation, je me suis spécialisé
+          dans les affiches lithographiques après avoir découvert, lors d'une
+          brocante normande, une affiche PLM de Broders dans un état pitoyable
+          qui cachait une composition d'une beauté à couper le souffle.
+        </p>
+        <p style="color: var(--sepia); font-size: 1.05rem; line-height: 1.85; font-weight: 300; margin-bottom: 1.25rem;">
+          Depuis, j'ai restauré plusieurs centaines de pièces. Chaque affiche
+          est un voyage : dans le temps, dans l'histoire du design, dans
+          les techniques d'imprimerie de l'époque. Il y a quelque chose
+          d'émouvant dans le fait de rendre à une image sa lisibilité perdue.
+        </p>
+        <p style="color: var(--sepia); font-size: 1.05rem; line-height: 1.85; font-weight: 300;">
+          L'atelier est basé à Paris. Je travaille seul, avec le soin et
+          le temps que chaque pièce mérite.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Values -->
+  <section class="section section-alt">
+    <div class="section-header">
+      <p class="section-eyebrow">Engagements</p>
+      <h2 class="section-title">Notre approche</h2>
+    </div>
+
+    <div class="services-grid">
+      <div class="service-card">
+        <div class="service-number">Authenticité</div>
+        <h3 class="service-title">Uniquement des originaux</h3>
+        <p class="service-desc">
+          Toutes les affiches de notre collection sont des originaux
+          d'époque, vérifiés et documentés. Nous n'acceptons et ne
+          vendons aucune reproduction.
+        </p>
+      </div>
+      <div class="service-card">
+        <div class="service-number">Réversibilité</div>
+        <h3 class="service-title">Interventions réversibles</h3>
+        <p class="service-desc">
+          Tous nos travaux de restauration respectent le principe de
+          réversibilité : aucune intervention permanente qui ne pourrait
+          être défaite par un futur restaurateur.
+        </p>
+      </div>
+      <div class="service-card">
+        <div class="service-number">Traçabilité</div>
+        <h3 class="service-title">Documentation complète</h3>
+        <p class="service-desc">
+          Chaque affiche restaurée est accompagnée d'un rapport
+          d'intervention détaillant les traitements effectués,
+          les matériaux utilisés et l'état avant/après.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Process -->
+  <section class="section">
+    <div style="max-width: 800px; margin: 0 auto;">
+      <div class="section-header">
+        <p class="section-eyebrow">Méthodes</p>
+        <h2 class="section-title">Comment nous travaillons</h2>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 2rem;">
+        {[
+          { num: '01', title: 'Réception & diagnostic', desc: 'Chaque affiche est examinée sous éclairage rasant et en transmission. Un diagnostic complet identifie les problèmes : déchirures, manques, auréoles, anciennes restaurations défaillantes.' },
+          { num: '02', title: 'Nettoyage & stabilisation', desc: 'Dépoussiérage mécanique délicat, puis, si nécessaire, traitement humide par zones. Les encres sont testées préalablement pour vérifier leur solubilité à l\'eau.' },
+          { num: '03', title: 'Restauration', desc: 'Réparation des déchirures au papier japonais, consolidation des manques par comblement ou intégration chromatique discrète. L\'objectif est toujours la lisibilité, jamais la tromperie.' },
+          { num: '04', title: 'Entoilage', desc: 'Pose d\'un voile de washi au verso pour consolider l\'ensemble. L\'affiche retrouve sa planéité et peut être manipulée, roulée ou encadrée sans risque.' },
+          { num: '05', title: 'Documentation & remise', desc: 'Photographies avant/après, rédaction du rapport d\'intervention, remise en pochette ou tube protecteur. Un certificat d\'authenticité peut être établi sur demande.' },
+        ].map(step => (
+          <div style="display: grid; grid-template-columns: 80px 1fr; gap: 1.5rem; align-items: start; padding: 1.5rem; border: 1px solid rgba(139,111,71,0.15);">
+            <div style="font-family: 'DM Mono', monospace; font-size: 1.5rem; color: var(--rust); opacity: 0.5; line-height: 1;">{step.num}</div>
+            <div>
+              <h3 style="font-size: 1.15rem; margin-bottom: 0.5rem;">{step.title}</h3>
+              <p style="color: var(--sepia); font-size: 0.95rem; line-height: 1.7; font-weight: 300;">{step.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="section section-alt" style="text-align: center;">
+    <p class="section-eyebrow" style="justify-content:center; display:flex; align-items:center; gap:0.5rem;">
+      <span style="display:inline-block;width:2rem;height:1px;background:var(--rust);"></span>
+      Travailler ensemble
+    </p>
+    <h2 class="section-title">Vous avez une affiche à restaurer ?</h2>
+    <p class="section-sub" style="margin-bottom: 2rem;">
+      Envoyez-nous des photos de votre pièce et nous vous adresserons
+      un devis gratuit dans les 48 heures.
+    </p>
+    <a href="/contact" class="btn-primary">Nous contacter</a>
+  </section>
+</BaseLayout>

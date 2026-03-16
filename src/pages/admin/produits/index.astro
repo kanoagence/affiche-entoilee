@@ -1,0 +1,95 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { getProduits, etatLabel } from '../../../lib/data';
+
+const produits = await getProduits();
+
+const successMsg = Astro.url.searchParams.get('success');
+---
+
+<AdminLayout title="Produits — Admin Hervé Affiches" activeSection="produits">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(245,240,232,0.08);">
+    <h1 class="admin-page-title" style="margin: 0; border: none; padding: 0;">
+      Produits <span style="font-size: 1rem; color: rgba(245,240,232,0.4);">({produits.length})</span>
+    </h1>
+    <div style="display: flex; gap: 0.75rem;">
+      <a href="/admin/produits/import" class="admin-btn admin-btn-secondary">↑ Importer Excel</a>
+      <a href="/admin/produits/nouveau" class="admin-btn admin-btn-primary">+ Nouveau produit</a>
+    </div>
+  </div>
+
+  {successMsg === 'created' && (
+    <div class="alert alert-success">Produit créé avec succès.</div>
+  )}
+  {successMsg === 'updated' && (
+    <div class="alert alert-success">Produit mis à jour avec succès.</div>
+  )}
+  {successMsg === 'deleted' && (
+    <div class="alert alert-success">Produit supprimé.</div>
+  )}
+
+  {produits.length === 0 ? (
+    <div style="text-align: center; padding: 4rem; color: rgba(245,240,232,0.4);">
+      <p style="font-size: 1.1rem; margin-bottom: 1rem;">Aucun produit pour le moment.</p>
+      <a href="/admin/produits/nouveau" class="admin-btn admin-btn-primary">Créer le premier produit</a>
+    </div>
+  ) : (
+    <div class="admin-card" style="padding: 0;">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Titre</th>
+            <th>Artiste</th>
+            <th>Année</th>
+            <th>État</th>
+            <th>Prix</th>
+            <th>Dispo</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {produits.map((p) => (
+            <tr>
+              <td>
+                <strong style="color: var(--cream);">{p.titre}</strong>
+              </td>
+              <td style="opacity: 0.7;">{p.artiste ?? '—'}</td>
+              <td style="opacity: 0.7; font-family: 'DM Mono', monospace; font-size: 0.8rem;">{p.annee}</td>
+              <td>
+                <span
+                  class="admin-badge"
+                  style={
+                    p.etat === 'entoilee'
+                      ? 'background: rgba(196,98,45,0.2); color: var(--rust);'
+                      : p.etat === 'restauree'
+                      ? 'background: rgba(184,150,46,0.2); color: var(--gold-light);'
+                      : 'background: rgba(245,240,232,0.08); color: rgba(245,240,232,0.5);'
+                  }
+                >
+                  {etatLabel(p.etat)}
+                </span>
+              </td>
+              <td style="color: var(--gold-light); font-family: 'DM Mono', monospace; font-size: 0.8rem;">
+                {p.surDevis ? 'Sur devis' : p.prix ? `${p.prix.toLocaleString('fr-FR')} €` : '—'}
+              </td>
+              <td>
+                <span class="status-dot" style={p.disponible ? 'background: #4ade80;' : 'background: var(--rust);'}></span>
+                <span style="font-size: 0.8rem; opacity: 0.6;">{p.disponible ? 'Oui' : 'Non'}</span>
+              </td>
+              <td>
+                <div style="display: flex; gap: 0.5rem;">
+                  <a href={`/admin/produits/${p.slug}`} class="admin-btn admin-btn-secondary" style="padding: 0.25rem 0.6rem; font-size: 0.58rem;">
+                    Modifier
+                  </a>
+                  <a href={`/produits/${p.slug}`} target="_blank" class="admin-btn admin-btn-secondary" style="padding: 0.25rem 0.6rem; font-size: 0.58rem; opacity: 0.5;">
+                    ↗
+                  </a>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+</AdminLayout>
