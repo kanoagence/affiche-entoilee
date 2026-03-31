@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "astro build && node -e \"const fs=require('fs');const p='.vercel/output/functions/_render.func/.vc-config.json';const c=JSON.parse(fs.readFileSync(p,'utf8'));c.runtime='nodejs20.x';fs.writeFileSync(p,JSON.stringify(c,null,2));console.log('Patched runtime to nodejs20.x');\"",
     "preview": "astro preview",
     "astro": "astro"
   },
