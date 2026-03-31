@@ -1,9 +1,8 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
-import { getProduits, etatLabel } from '../../../lib/data';
+import { getProduitsAdmin, etatLabel, stockTotal } from '../../../lib/data';
 
-const produits = await getProduits();
-
+const produits = await getProduitsAdmin();
 const successMsg = Astro.url.searchParams.get('success');
 ---
 
@@ -18,15 +17,9 @@ const successMsg = Astro.url.searchParams.get('success');
     </div>
   </div>
 
-  {successMsg === 'created' && (
-    <div class="alert alert-success">Produit créé avec succès.</div>
-  )}
-  {successMsg === 'updated' && (
-    <div class="alert alert-success">Produit mis à jour avec succès.</div>
-  )}
-  {successMsg === 'deleted' && (
-    <div class="alert alert-success">Produit supprimé.</div>
-  )}
+  {successMsg === 'created' && <div class="alert alert-success">Produit créé avec succès.</div>}
+  {successMsg === 'updated' && <div class="alert alert-success">Produit mis à jour avec succès.</div>}
+  {successMsg === 'deleted' && <div class="alert alert-success">Produit supprimé.</div>}
 
   {produits.length === 0 ? (
     <div style="text-align: center; padding: 4rem; color: rgba(245,240,232,0.4);">
@@ -38,11 +31,13 @@ const successMsg = Astro.url.searchParams.get('success');
       <table class="admin-table">
         <thead>
           <tr>
+            <th>Réf.</th>
             <th>Titre</th>
-            <th>Artiste</th>
+            <th>Affichiste</th>
             <th>Année</th>
+            <th>Catégorie</th>
             <th>État</th>
-            <th>Prix</th>
+            <th>Stk E/P/C</th>
             <th>Dispo</th>
             <th>Actions</th>
           </tr>
@@ -50,27 +45,22 @@ const successMsg = Astro.url.searchParams.get('success');
         <tbody>
           {produits.map((p) => (
             <tr>
+              <td style="font-family: 'DM Mono', monospace; font-size: 0.7rem; opacity: 0.5;">{p.ref ?? '—'}</td>
+              <td><strong style="color: var(--cream);">{p.titre}</strong></td>
+              <td style="opacity: 0.7;">{p.affichiste ?? '—'}</td>
+              <td style="font-family: 'DM Mono', monospace; font-size: 0.8rem; opacity: 0.7;">{p.annee ?? '—'}</td>
+              <td style="opacity: 0.7;">{p.categorie ?? '—'}</td>
               <td>
-                <strong style="color: var(--cream);">{p.titre}</strong>
-              </td>
-              <td style="opacity: 0.7;">{p.artiste ?? '—'}</td>
-              <td style="opacity: 0.7; font-family: 'DM Mono', monospace; font-size: 0.8rem;">{p.annee}</td>
-              <td>
-                <span
-                  class="admin-badge"
-                  style={
-                    p.etat === 'entoilee'
-                      ? 'background: rgba(196,98,45,0.2); color: var(--rust);'
-                      : p.etat === 'restauree'
-                      ? 'background: rgba(184,150,46,0.2); color: var(--gold-light);'
-                      : 'background: rgba(245,240,232,0.08); color: rgba(245,240,232,0.5);'
-                  }
-                >
+                <span class="admin-badge" style={
+                  p.etat === 'entoilee' ? 'background: rgba(196,98,45,0.2); color: var(--rust);' :
+                  p.etat === 'restauree' ? 'background: rgba(184,150,46,0.2); color: var(--gold-light);' :
+                  'background: rgba(245,240,232,0.08); color: rgba(245,240,232,0.5);'
+                }>
                   {etatLabel(p.etat)}
                 </span>
               </td>
-              <td style="color: var(--gold-light); font-family: 'DM Mono', monospace; font-size: 0.8rem;">
-                {p.surDevis ? 'Sur devis' : p.prix ? `${p.prix.toLocaleString('fr-FR')} €` : '—'}
+              <td style="font-family: 'DM Mono', monospace; font-size: 0.75rem; opacity: 0.7;">
+                {p.stk_e}/{p.stk_p}/{p.stk_c}
               </td>
               <td>
                 <span class="status-dot" style={p.disponible ? 'background: #4ade80;' : 'background: var(--rust);'}></span>
@@ -78,10 +68,10 @@ const successMsg = Astro.url.searchParams.get('success');
               </td>
               <td>
                 <div style="display: flex; gap: 0.5rem;">
-                  <a href={`/admin/produits/${p.slug}`} class="admin-btn admin-btn-secondary" style="padding: 0.25rem 0.6rem; font-size: 0.58rem;">
+                  <a href={`/admin/produits/${p.id}`} class="admin-btn admin-btn-secondary" style="padding: 0.25rem 0.6rem; font-size: 0.58rem;">
                     Modifier
                   </a>
-                  <a href={`/produits/${p.slug}`} target="_blank" class="admin-btn admin-btn-secondary" style="padding: 0.25rem 0.6rem; font-size: 0.58rem; opacity: 0.5;">
+                  <a href={`/produits/${p.id}`} target="_blank" class="admin-btn admin-btn-secondary" style="padding: 0.25rem 0.6rem; font-size: 0.58rem; opacity: 0.5;">
                     ↗
                   </a>
                 </div>

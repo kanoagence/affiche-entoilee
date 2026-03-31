@@ -3,7 +3,7 @@ import '../styles/globals.css';
 
 interface Props {
   title?: string;
-  activeSection?: 'dashboard' | 'produits' | 'blog';
+  activeSection?: 'dashboard' | 'produits' | 'blog' | 'seo';
 }
 
 const {
@@ -57,6 +57,12 @@ const currentPath = Astro.url.pathname;
         class={currentPath.startsWith('/admin/blog') ? 'active' : ''}
       >
         Blog
+      </a>
+      <a
+        href="/admin/seo"
+        class={currentPath.startsWith('/admin/seo') ? 'active' : ''}
+      >
+        SEO Pages
       </a>
       <a
         href="/"

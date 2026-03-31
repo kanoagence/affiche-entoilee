@@ -1,34 +1,23 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { getArticles, getArticle, formatDate } from '../../lib/data';
+import { getArticle, formatDate } from '../../lib/data';
 
-const { slug } = Astro.params;
+const { slug: id } = Astro.params;
 
-if (!slug) {
+if (!id) {
   return Astro.redirect('/blog');
 }
 
-const article = await getArticle(slug);
+const article = await getArticle(id);
 
 if (!article || !article.publie) {
   return new Response(null, { status: 404 });
 }
-
-const { Content } = await article.render();
-
-const defaultGradients = [
-  'linear-gradient(135deg, #C4622D 0%, #8B6F47 100%)',
-  'linear-gradient(135deg, #B8962E 0%, #2D2520 100%)',
-  'linear-gradient(135deg, #1A1410 0%, #8B6F47 70%, #C4622D 100%)',
-];
-const hashIndex = slug.split('').reduce((a: number, c: string) => a + c.charCodeAt(0), 0) % defaultGradients.length;
-const bgGradient = article.image ? undefined : defaultGradients[hashIndex];
 ---
 
 <BaseLayout
   title={`${article.titre} — Revue Hervé Affiches`}
-  description={article.resume}
-  image={article.image}
+  description={article.resume ?? undefined}
 >
   <!-- Article header -->
   <section
@@ -42,34 +31,31 @@ const bgGradient = article.image ? undefined : defaultGradients[hashIndex];
         ← La revue
       </a>
 
-      <p class="blog-date">{formatDate(article.date)}</p>
+      <p style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--sepia); opacity: 0.6; margin-bottom: 0.5rem;">
+        {formatDate(article.created_at)}
+      </p>
       <h1 style="font-size: clamp(1.75rem, 4vw, 2.75rem); line-height: 1.15; margin: 0.75rem 0 1.25rem;">
         {article.titre}
       </h1>
-      <p style="font-size: 1.2rem; color: var(--sepia); font-weight: 300; line-height: 1.7; font-style: italic;">
-        {article.resume}
-      </p>
+      {article.resume && (
+        <p style="font-size: 1.2rem; color: var(--sepia); font-weight: 300; line-height: 1.7; font-style: italic;">
+          {article.resume}
+        </p>
+      )}
     </div>
   </section>
 
-  <!-- Hero image / gradient -->
-  <div style="max-width: 960px; margin: 0 auto; padding: 0 3rem;">
-    <div style="width: 100%; aspect-ratio: 16/7; overflow: hidden; border-radius: 2px;">
-      {article.image ? (
-        <img src={article.image} alt={article.titre} style="width:100%;height:100%;object-fit:cover;" />
-      ) : (
-        <div style={`width:100%;height:100%;background:${bgGradient}`}></div>
-      )}
-    </div>
-  </div>
-
   <!-- Article content -->
   <article style="padding: 4rem 3rem 6rem; max-width: 720px; margin: 0 auto;">
-    <div class="prose">
-      <Content />
-    </div>
+    {article.contenu ? (
+      <div style="font-size: 1.05rem; color: var(--sepia); line-height: 1.8; font-weight: 300; white-space: pre-wrap;">
+        {article.contenu}
+      </div>
+    ) : (
+      <p style="color: var(--sepia); font-style: italic; opacity: 0.6;">Contenu non disponible.</p>
+    )}
 
-    <!-- Footer of article -->
+    <!-- Footer de l'article -->
     <div style="margin-top: 4rem; padding-top: 2rem; border-top: 1px solid rgba(139,111,71,0.2); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
       <a
         href="/blog"

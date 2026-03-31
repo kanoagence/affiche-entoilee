@@ -1,9 +1,6 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
-import { getArticle } from '../../../lib/data';
-import { writeFile, unlink, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { existsSync } from 'node:fs';
+import { getArticleAdmin, updateArticle, deleteArticle } from '../../../lib/data';
 
 const { id } = Astro.params;
 
@@ -11,21 +8,11 @@ if (!id) {
   return Astro.redirect('/admin/blog');
 }
 
-const article = await getArticle(id);
+const article = await getArticleAdmin(id);
 
 if (!article) {
   return new Response(null, { status: 404 });
 }
-
-// Read raw markdown for editing
-let rawContent = '';
-try {
-  const filePath = join(process.cwd(), 'src', 'content', 'blog', `${id}.md`);
-  const rawFile = await readFile(filePath, 'utf-8');
-  // Extract body (after second ---)
-  const parts = rawFile.split('---');
-  rawContent = parts.slice(2).join('---').trim();
-} catch {}
 
 let error = '';
 
@@ -34,48 +21,36 @@ if (Astro.request.method === 'POST') {
   const action = data.get('_action') as string;
 
   if (action === 'delete') {
-    try {
-      const filePath = join(process.cwd(), 'src', 'content', 'blog', `${id}.md`);
-      if (existsSync(filePath)) {
-        await unlink(filePath);
-      }
+    const ok = await deleteArticle(id);
+    if (ok) {
       return Astro.redirect('/admin/blog?success=deleted');
-    } catch (e) {
+    } else {
       error = 'Erreur lors de la suppression.';
     }
   } else {
     try {
       const titre = (data.get('titre') as string)?.trim();
-      const resume = (data.get('resume') as string)?.trim();
-      const dateStr = data.get('date') as string;
+      const resume = (data.get('resume') as string)?.trim() || null;
       const publie = data.get('publie') === 'on';
-      const contenu = (data.get('contenu') as string)?.trim();
+      const contenu = (data.get('contenu') as string)?.trim() || null;
 
-      if (!titre || !resume || !dateStr || !contenu) {
-        error = 'Les champs obligatoires sont manquants.';
+      if (!titre) {
+        error = 'Le champ titre est obligatoire.';
       } else {
-        const frontmatter = [
-          '---',
-          `titre: "${titre.replace(/"/g, '\\"')}"`,
-          `resume: "${resume.replace(/"/g, '\\"')}"`,
-          `date: ${dateStr}`,
-          `publie: ${publie}`,
-          '---',
-          '',
-          contenu,
-        ].join('\n');
+        const ok = await updateArticle(id, { titre, resume, contenu, publie });
 
-        const filePath = join(process.cwd(), 'src', 'content', 'blog', `${id}.md`);
-        await writeFile(filePath, frontmatter, 'utf-8');
-        return Astro.redirect('/admin/blog?success=updated');
+        if (!ok) {
+          error = 'Erreur lors de la mise à jour. Vérifiez les logs.';
+        } else {
+          return Astro.redirect('/admin/blog?success=updated');
+        }
       }
     } catch (e) {
+      console.error(e);
       error = 'Erreur lors de la mise à jour.';
     }
   }
 }
-
-const dateForEdit = article.date.toISOString().split('T')[0];
 ---
 
 <AdminLayout title={`${article.titre} — Admin Blog`} activeSection="blog">
@@ -95,7 +70,7 @@ const dateForEdit = article.date.toISOString().split('T')[0];
 
   <form method="POST" action={`/admin/blog/${id}`}>
     <div style="display: grid; grid-template-columns: 1fr 320px; gap: 2rem; align-items: start;">
-      <!-- Main content -->
+      <!-- Contenu principal -->
       <div>
         <div class="admin-card">
           <div class="admin-form-group">
@@ -112,12 +87,12 @@ const dateForEdit = article.date.toISOString().split('T')[0];
           </div>
 
           <div class="admin-form-group">
-            <label class="admin-label" for="resume">Résumé *</label>
-            <textarea class="admin-textarea" id="resume" name="resume" required rows="2">{article.resume}</textarea>
+            <label class="admin-label" for="resume">Résumé</label>
+            <textarea class="admin-textarea" id="resume" name="resume" rows="2">{article.resume ?? ''}</textarea>
           </div>
 
           <div class="admin-form-group">
-            <label class="admin-label" for="contenu">Contenu (Markdown) *</label>
+            <label class="admin-label" for="contenu">Contenu *</label>
             <textarea
               class="admin-textarea"
               id="contenu"
@@ -125,7 +100,7 @@ const dateForEdit = article.date.toISOString().split('T')[0];
               required
               rows="22"
               style="font-family: 'DM Mono', monospace; font-size: 0.82rem; line-height: 1.6;"
-            >{rawContent}</textarea>
+            >{article.contenu ?? ''}</textarea>
           </div>
         </div>
       </div>
@@ -136,11 +111,6 @@ const dateForEdit = article.date.toISOString().split('T')[0];
           <h2 style="font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(245,240,232,0.5); margin-bottom: 1.5rem;">
             Publication
           </h2>
-
-          <div class="admin-form-group">
-            <label class="admin-label" for="date">Date *</label>
-            <input class="admin-input" type="date" id="date" name="date" value={dateForEdit} required />
-          </div>
 
           <div class="admin-form-group" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.875rem; background: rgba(245,240,232,0.04); border: 1px solid rgba(245,240,232,0.08);">
             <input
@@ -168,7 +138,7 @@ const dateForEdit = article.date.toISOString().split('T')[0];
     </div>
   </form>
 
-  <!-- Delete zone -->
+  <!-- Zone dangereuse -->
   <div style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid rgba(196,98,45,0.2);">
     <h3 style="font-family: 'DM Mono', monospace; font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(196,98,45,0.6); margin-bottom: 1rem;">
       Zone dangereuse

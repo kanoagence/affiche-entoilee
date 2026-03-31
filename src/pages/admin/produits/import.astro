@@ -1,11 +1,7 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
-import { writeFile, mkdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { supabaseAdmin } from '../../../lib/supabase';
 import * as XLSX from 'xlsx';
-
-// Colonnes Excel attendues (en-têtes)
-// titre | description | annee | dimensions | etat | prix | surDevis | disponible | artiste | imprimeur
 
 type ImportResult = {
   success: number;
@@ -25,12 +21,9 @@ function slugify(str: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-function normalizeEtat(val: string): string | null {
-  const v = val.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  if (v.includes('entoil')) return 'entoilee';
-  if (v.includes('restaur') && !v.includes('a restaur') && !v.includes('à restaur')) return 'restauree';
-  if (v.includes('a restaur') || v.includes('restaurer')) return 'a-restaurer';
-  return null;
+// Normalise une clé : minuscules, sans accents, sans caractères non-alphanumériques
+function normKey(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
 }
 
 if (Astro.request.method === 'POST') {
@@ -53,99 +46,93 @@ if (Astro.request.method === 'POST') {
           raw: false,
         });
 
-        const contentDir = join(process.cwd(), 'src', 'content', 'produits');
-        await mkdir(contentDir, { recursive: true });
-
         result = { success: 0, errors: [], created: [] };
 
         for (let i = 0; i < rows.length; i++) {
           const row = rows[i];
-          const rowNum = i + 2; // Excel row (1=header, 2=first data row)
+          const rowNum = i + 2;
 
-          // Normalise les clés (insensible à la casse et aux accents)
+          // Recherche insensible aux accents, casse, ponctuation
+          // Ex: "Réf." → "ref", "Description - Synopsis" → "descriptionsynopsis"
           const get = (keys: string[]): string => {
-            for (const key of keys) {
-              const found = Object.keys(row).find(
-                (k) =>
-                  k.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') ===
-                  key.toLowerCase()
-              );
-              if (found && row[found]?.toString().trim()) return row[found].toString().trim();
-            }
+            const normalizedKeys = keys.map(normKey);
+            const found = Object.keys(row).find((k) => normalizedKeys.includes(normKey(k)));
+            if (found && row[found]?.toString().trim()) return row[found].toString().trim();
             return '';
           };
 
-          const titre = get(['titre', 'title', 'nom']);
-          const description = get(['description', 'desc']);
-          const annee = get(['annee', 'année', 'year', 'date']);
-          const etatRaw = get(['etat', 'état', 'statut', 'status', 'condition']);
-          const dimensionsRaw = get(['dimensions', 'taille', 'size', 'format']);
-          const prixRaw = get(['prix', 'price', 'tarif']);
-          const surDevisRaw = get(['surdevis', 'sur devis', 'devis', 'ondemand']);
-          const disponibleRaw = get(['disponible', 'dispo', 'available', 'en ligne']);
-          const artiste = get(['artiste', 'artist', 'auteur', 'author']);
-          const imprimeur = get(['imprimeur', 'printer', 'editeur', 'éditeur']);
+          const getInt = (keys: string[]): number => {
+            const v = get(keys);
+            const n = parseInt(v.replace(/[^\d]/g, ''), 10);
+            return isNaN(n) ? 0 : n;
+          };
 
-          // Validations
+          const titre        = get(['Titre', 'title', 'nom']);
+          // "Description - Synopsis" → normalisé en "descriptionsynopsis"
+          const description  = get(['Description - Synopsis', 'Description', 'desc']) || null;
+          const annee        = get(['Année', 'annee', 'year', 'date']) || null;
+          const etatRaw      = get(['Etat', 'État', 'statut', 'status', 'condition']);
+          const formatRaw    = get(['Format', 'dimensions', 'taille', 'size']);
+          const prixRaw      = get(['PRIX', 'Prix', 'price', 'tarif']);
+          const disponibleRaw= get(['disponible', 'dispo', 'available']);
+          // "Affichiste" direct
+          const affichiste   = get(['Affichiste', 'artiste', 'artist', 'auteur']) || null;
+          const impression   = get(['Impression', 'imprimeur', 'printer']) || null;
+          // "Réf." → normalisé en "ref"
+          const ref          = get(['Réf.', 'Ref', 'reference', 'référence']) || null;
+          const auth         = get(['Auth', 'authenticite', 'authenticité']) || null;
+          const categorie    = get(['Catégorie', 'categorie', 'category']) || null;
+          const theme        = get(['Thème', 'theme']) || null;
+          // "Réalisateur-ice" → normalisé en "realisateurice"
+          const realisateur  = get(['Réalisateur-ice', 'Réalisateur', 'realisateur', 'director']) || null;
+          const scenariste   = get(['Scénariste', 'scenariste', 'writer']) || null;
+          const musique      = get(['Musique', 'music', 'compositeur']) || null;
+          // "Acteurs-rices" → normalisé en "acteursrices"
+          const acteurs      = get(['Acteurs-rices', 'Acteurs', 'actors', 'cast']) || null;
+          const studio       = get(['Studio']) || null;
+          const commentaires = get(['Commentaires', 'comments']) || null;
+          const observations = get(['Observations', 'notes']) || null;
+          // "Histoire affichiste" → normalisé en "histoireaffichiste"
+          const histoire_affichiste = get(['Histoire affichiste', 'histoire affichiste']) || null;
+          // Stocks
+          const stk_e = getInt(['Stk E', 'stke', 'stock e', 'stock entoile']);
+          const stk_p = getInt(['Stk P', 'stkp', 'stock p', 'stock papier']);
+          const stk_c = getInt(['Stk C', 'stkc', 'stock c']);
+
           if (!titre) {
             result.errors.push({ row: rowNum, titre: '(vide)', message: 'Titre manquant' });
             continue;
           }
-          if (!description) {
-            result.errors.push({ row: rowNum, titre, message: 'Description manquante' });
-            continue;
-          }
-          if (!annee) {
-            result.errors.push({ row: rowNum, titre, message: 'Année manquante' });
-            continue;
-          }
-          if (!etatRaw) {
-            result.errors.push({ row: rowNum, titre, message: 'État manquant (entoilee / restauree / a-restaurer)' });
-            continue;
-          }
 
-          const etat = normalizeEtat(etatRaw);
-          if (!etat) {
-            result.errors.push({
-              row: rowNum,
-              titre,
-              message: `État non reconnu : "${etatRaw}". Valeurs acceptées : Entoilée, Restaurée, À restaurer`,
-            });
-            continue;
-          }
+          // Etat = note de qualité libre (A, A+, B+, etc.) — stocké tel quel
+          const etat = etatRaw || null;
 
-          const prix = prixRaw ? parseInt(prixRaw.replace(/[^\d]/g, ''), 10) : undefined;
-          const surDevis =
-            surDevisRaw.toLowerCase() === 'oui' ||
-            surDevisRaw.toLowerCase() === 'yes' ||
-            surDevisRaw === '1' ||
-            surDevisRaw.toLowerCase() === 'true';
+          const prixParsed = prixRaw ? parseInt(prixRaw.replace(/[^\d]/g, ''), 10) : null;
+          const prix = (prixParsed && !isNaN(prixParsed)) ? prixParsed : null;
           const disponible =
             disponibleRaw === '' ||
-            disponibleRaw.toLowerCase() === 'oui' ||
-            disponibleRaw.toLowerCase() === 'yes' ||
-            disponibleRaw === '1' ||
-            disponibleRaw.toLowerCase() === 'true';
+            ['oui', 'yes', '1', 'true'].includes(disponibleRaw.toLowerCase());
 
-          const slug = slugify(titre);
-          const produitData = {
-            titre,
-            description,
-            annee,
-            ...(dimensionsRaw && { dimensions: dimensionsRaw }),
-            etat,
-            ...(prix && !isNaN(prix) && !surDevis ? { prix } : {}),
-            surDevis,
-            disponible,
-            images: [],
-            ...(artiste && { artiste }),
-            ...(imprimeur && { imprimeur }),
-          };
+          const { error: insertError } = await supabaseAdmin
+            .from('produits')
+            .insert({
+              titre, description, annee,
+              format: formatRaw || null,
+              etat, prix, disponible,
+              affichiste, impression, ref, auth,
+              categorie, theme,
+              realisateur, scenariste, musique, acteurs, studio,
+              commentaires, observations, histoire_affichiste,
+              stk_e, stk_p, stk_c,
+              photos: [],
+            });
 
-          const filePath = join(contentDir, `${slug}.json`);
-          await writeFile(filePath, JSON.stringify(produitData, null, 2), 'utf-8');
-          result.success++;
-          result.created.push(titre);
+          if (insertError) {
+            result.errors.push({ row: rowNum, titre, message: insertError.message });
+          } else {
+            result.success++;
+            result.created.push(titre);
+          }
         }
       }
     }
@@ -223,7 +210,6 @@ if (Astro.request.method === 'POST') {
     </div>
   )}
 
-  <!-- Formulaire d'upload -->
   {!result && (
     <div class="admin-card" style="padding: 2rem; margin-bottom: 2rem;">
       <h2 style="font-family: 'Playfair Display', serif; font-size: 1.3rem; color: var(--cream); margin-bottom: 0.5rem;">
@@ -279,22 +265,22 @@ if (Astro.request.method === 'POST') {
             <td style="opacity: 0.6;">Air France — Paris New York</td>
           </tr>
           <tr>
-            <td><code style="color: var(--gold-light);">description</code></td>
+            <td><code style="color: var(--gold-light);">etat</code></td>
             <td><span style="color: #f87171;">Oui</span></td>
+            <td style="opacity: 0.6;">Entoilée / Restaurée / À restaurer</td>
+            <td style="opacity: 0.6;">Entoilée</td>
+          </tr>
+          <tr>
+            <td><code style="color: var(--gold-light);">description</code></td>
+            <td><span style="color: rgba(245,240,232,0.4);">Non</span></td>
             <td style="opacity: 0.6;">Texte libre</td>
             <td style="opacity: 0.6;">Affiche originale chromolithographie...</td>
           </tr>
           <tr>
             <td><code style="color: var(--gold-light);">annee</code></td>
-            <td><span style="color: #f87171;">Oui</span></td>
+            <td><span style="color: rgba(245,240,232,0.4);">Non</span></td>
             <td style="opacity: 0.6;">Texte libre</td>
             <td style="opacity: 0.6;">c. 1949</td>
-          </tr>
-          <tr>
-            <td><code style="color: var(--gold-light);">etat</code></td>
-            <td><span style="color: #f87171;">Oui</span></td>
-            <td style="opacity: 0.6;">Entoilée / Restaurée / À restaurer</td>
-            <td style="opacity: 0.6;">Entoilée</td>
           </tr>
           <tr>
             <td><code style="color: var(--gold-light);">prix</code></td>
@@ -305,7 +291,7 @@ if (Astro.request.method === 'POST') {
           <tr>
             <td><code style="color: var(--gold-light);">surDevis</code></td>
             <td><span style="color: rgba(245,240,232,0.4);">Non</span></td>
-            <td style="opacity: 0.6;">oui / non (défaut : non)</td>
+            <td style="opacity: 0.6;">oui / non — si oui, prix = null</td>
             <td style="opacity: 0.6;">non</td>
           </tr>
           <tr>
@@ -315,22 +301,34 @@ if (Astro.request.method === 'POST') {
             <td style="opacity: 0.6;">oui</td>
           </tr>
           <tr>
-            <td><code style="color: var(--gold-light);">dimensions</code></td>
+            <td><code style="color: var(--gold-light);">format</code> / <code style="color: var(--gold-light);">dimensions</code></td>
             <td><span style="color: rgba(245,240,232,0.4);">Non</span></td>
             <td style="opacity: 0.6;">Texte libre</td>
             <td style="opacity: 0.6;">62 × 100 cm</td>
           </tr>
           <tr>
-            <td><code style="color: var(--gold-light);">artiste</code></td>
+            <td><code style="color: var(--gold-light);">affichiste</code> / <code style="color: var(--gold-light);">artiste</code></td>
             <td><span style="color: rgba(245,240,232,0.4);">Non</span></td>
             <td style="opacity: 0.6;">Texte libre</td>
             <td style="opacity: 0.6;">Lucien Boucher</td>
           </tr>
           <tr>
-            <td><code style="color: var(--gold-light);">imprimeur</code></td>
+            <td><code style="color: var(--gold-light);">impression</code> / <code style="color: var(--gold-light);">imprimeur</code></td>
             <td><span style="color: rgba(245,240,232,0.4);">Non</span></td>
             <td style="opacity: 0.6;">Texte libre</td>
             <td style="opacity: 0.6;">Imp. Perceval, Paris</td>
+          </tr>
+          <tr>
+            <td><code style="color: var(--gold-light);">ref</code>, <code style="color: var(--gold-light);">categorie</code>, <code style="color: var(--gold-light);">theme</code></td>
+            <td><span style="color: rgba(245,240,232,0.4);">Non</span></td>
+            <td style="opacity: 0.6;">Texte libre</td>
+            <td style="opacity: 0.6;">AF-001, Tourisme, Mer</td>
+          </tr>
+          <tr>
+            <td><code style="color: var(--gold-light);">realisateur</code>, <code style="color: var(--gold-light);">acteurs</code>, <code style="color: var(--gold-light);">studio</code>…</td>
+            <td><span style="color: rgba(245,240,232,0.4);">Non</span></td>
+            <td style="opacity: 0.6;">Texte libre (champs cinéma)</td>
+            <td style="opacity: 0.6;">Jean Renoir</td>
           </tr>
         </tbody>
       </table>

@@ -1,7 +1,6 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
-import { writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { createArticle } from '../../../lib/data';
 
 let error = '';
 
@@ -10,46 +9,26 @@ if (Astro.request.method === 'POST') {
     const data = await Astro.request.formData();
 
     const titre = (data.get('titre') as string)?.trim();
-    const resume = (data.get('resume') as string)?.trim();
-    const dateStr = data.get('date') as string;
+    const resume = (data.get('resume') as string)?.trim() || null;
     const publie = data.get('publie') === 'on';
-    const contenu = (data.get('contenu') as string)?.trim();
+    const contenu = (data.get('contenu') as string)?.trim() || null;
 
-    if (!titre || !resume || !dateStr || !contenu) {
-      error = 'Les champs titre, résumé, date et contenu sont obligatoires.';
+    if (!titre) {
+      error = 'Le champ titre est obligatoire.';
     } else {
-      // Generate slug
-      const slug = titre
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
+      const article = await createArticle({ titre, resume, contenu, publie, image: null });
 
-      const frontmatter = [
-        '---',
-        `titre: "${titre.replace(/"/g, '\\"')}"`,
-        `resume: "${resume.replace(/"/g, '\\"')}"`,
-        `date: ${dateStr}`,
-        `publie: ${publie}`,
-        '---',
-        '',
-        contenu,
-      ].join('\n');
-
-      const contentDir = join(process.cwd(), 'src', 'content', 'blog');
-      const filePath = join(contentDir, `${slug}.md`);
-      await writeFile(filePath, frontmatter, 'utf-8');
-
-      return Astro.redirect('/admin/blog?success=created');
+      if (!article) {
+        error = 'Erreur lors de la création de l\'article. Vérifiez les logs.';
+      } else {
+        return Astro.redirect('/admin/blog?success=created');
+      }
     }
   } catch (e) {
     console.error(e);
     error = 'Erreur lors de la création de l\'article.';
   }
 }
-
-const today = new Date().toISOString().split('T')[0];
 ---
 
 <AdminLayout title="Nouvel article — Admin Hervé Affiches" activeSection="blog">
@@ -62,7 +41,7 @@ const today = new Date().toISOString().split('T')[0];
 
   <form method="POST" action="/admin/blog/nouveau">
     <div style="display: grid; grid-template-columns: 1fr 320px; gap: 2rem; align-items: start;">
-      <!-- Main content -->
+      <!-- Contenu principal -->
       <div>
         <div class="admin-card">
           <div class="admin-form-group">
@@ -79,12 +58,11 @@ const today = new Date().toISOString().split('T')[0];
           </div>
 
           <div class="admin-form-group">
-            <label class="admin-label" for="resume">Résumé / Chapô *</label>
+            <label class="admin-label" for="resume">Résumé / Chapô</label>
             <textarea
               class="admin-textarea"
               id="resume"
               name="resume"
-              required
               rows="2"
               placeholder="Court résumé affiché sur la liste et les aperçus..."
             ></textarea>
@@ -92,15 +70,7 @@ const today = new Date().toISOString().split('T')[0];
 
           <div class="admin-form-group">
             <label class="admin-label" for="contenu">
-              Contenu (Markdown) *
-              <a
-                href="https://www.markdownguide.org/basic-syntax/"
-                target="_blank"
-                rel="noopener"
-                style="color: rgba(245,240,232,0.3); font-size: 0.55rem; margin-left: 0.5rem; transition: color 0.2s;"
-              >
-                Guide Markdown ↗
-              </a>
+              Contenu *
             </label>
             <textarea
               class="admin-textarea"
@@ -108,14 +78,7 @@ const today = new Date().toISOString().split('T')[0];
               name="contenu"
               required
               rows="20"
-              placeholder="Rédigez votre article en Markdown...
-
-## Titre de section
-
-Paragraphe...
-
-- Item de liste
-- Item de liste"
+              placeholder="Rédigez votre article ici..."
               style="font-family: 'DM Mono', monospace; font-size: 0.82rem; line-height: 1.6;"
             ></textarea>
           </div>
@@ -128,11 +91,6 @@ Paragraphe...
           <h2 style="font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(245,240,232,0.5); margin-bottom: 1.5rem;">
             Publication
           </h2>
-
-          <div class="admin-form-group">
-            <label class="admin-label" for="date">Date de publication *</label>
-            <input class="admin-input" type="date" id="date" name="date" value={today} required />
-          </div>
 
           <div class="admin-form-group" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.875rem; background: rgba(245,240,232,0.04); border: 1px solid rgba(245,240,232,0.08);">
             <input type="checkbox" id="publie" name="publie" style="width: 16px; height: 16px; accent-color: var(--rust);" />

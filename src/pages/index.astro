@@ -1,16 +1,13 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import PosterCard from '../components/PosterCard.astro';
-import BlogCard from '../components/BlogCard.astro';
 import ContactForm from '../components/ContactForm.astro';
-import { getProduits, getArticles } from '../lib/data';
+import { getProduits, getArticles, etatLabel, formatDate } from '../lib/data';
 
 const produits = await getProduits();
 const articles = await getArticles(true);
 const recentArticles = articles.slice(0, 3);
 const featuredProduits = produits.slice(0, 4);
 
-// Hero poster thumbnails data
 const heroPosters = [
   {
     titre: 'Air France',
@@ -124,21 +121,58 @@ const heroPosters = [
       </p>
     </div>
 
-    <div class="products-grid">
-      {featuredProduits.map((produit) => (
-        <PosterCard
-          slug={produit.slug}
-          titre={produit.titre}
-          annee={produit.annee}
-          etat={produit.etat}
-          prix={produit.prix}
-          surDevis={produit.surDevis}
-          disponible={produit.disponible}
-          images={produit.images}
-          artiste={produit.artiste}
-        />
-      ))}
-    </div>
+    {featuredProduits.length > 0 ? (
+      <div class="products-grid">
+        {featuredProduits.map((produit) => (
+          <a
+            href={`/produits/${produit.id}`}
+            style="text-decoration: none; color: inherit; display: block;"
+          >
+            <div style="background: var(--ivory); border: 1px solid rgba(139,111,71,0.15); padding: 1.5rem; transition: box-shadow 0.2s; cursor: pointer;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+                {produit.ref && (
+                  <span style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--sepia); opacity: 0.6;">
+                    {produit.ref}
+                  </span>
+                )}
+                {produit.etat && (
+                  <span
+                    class={`product-badge badge-${produit.etat}`}
+                    style="position: static; font-size: 0.6rem;"
+                  >
+                    {etatLabel(produit.etat)}
+                  </span>
+                )}
+              </div>
+              <h3 style="font-family: 'Playfair Display', serif; font-size: 1.05rem; line-height: 1.3; color: var(--dark); margin-bottom: 0.4rem;">
+                {produit.titre}
+              </h3>
+              {produit.affichiste && (
+                <p style="font-size: 0.82rem; color: var(--sepia); margin-bottom: 0.3rem;">
+                  {produit.affichiste}
+                </p>
+              )}
+              <div style="display: flex; gap: 1rem; margin-top: 0.75rem;">
+                {produit.annee && (
+                  <span style="font-family: 'DM Mono', monospace; font-size: 0.65rem; color: var(--sepia); opacity: 0.7;">
+                    {produit.annee}
+                  </span>
+                )}
+                {produit.categorie && (
+                  <span style="font-family: 'DM Mono', monospace; font-size: 0.65rem; color: var(--sepia); opacity: 0.7;">
+                    {produit.categorie}
+                  </span>
+                )}
+              </div>
+            </div>
+          </a>
+        ))}
+      </div>
+    ) : (
+      <p style="text-align: center; color: var(--sepia); padding: 3rem 0;">
+        Aucune affiche disponible pour le moment. Revenez bientôt.
+      </p>
+    )}
 
     <div style="text-align: center;">
       <a href="/produits" class="btn-secondary">Voir toute la collection →</a>
@@ -156,17 +190,34 @@ const heroPosters = [
       </p>
     </div>
 
-    <div class="blog-grid">
-      {recentArticles.map((article) => (
-        <BlogCard
-          slug={article.slug}
-          titre={article.titre}
-          resume={article.resume}
-          date={article.date}
-          image={article.image}
-        />
-      ))}
-    </div>
+    {recentArticles.length > 0 ? (
+      <div class="blog-grid">
+        {recentArticles.map((article) => (
+          <a
+            href={`/blog/${article.id}`}
+            style="text-decoration: none; color: inherit; display: block;"
+          >
+            <article style="background: var(--cream); border: 1px solid rgba(139,111,71,0.15); padding: 2rem; height: 100%; cursor: pointer;">
+              <p style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--sepia); opacity: 0.6; margin-bottom: 0.75rem;">
+                {formatDate(article.created_at)}
+              </p>
+              <h3 style="font-family: 'Playfair Display', serif; font-size: 1.1rem; line-height: 1.3; color: var(--dark); margin-bottom: 0.5rem;">
+                {article.titre}
+              </h3>
+              {article.resume && (
+                <p style="font-size: 0.9rem; color: var(--sepia); line-height: 1.6; font-weight: 300;">
+                  {article.resume}
+                </p>
+              )}
+            </article>
+          </a>
+        ))}
+      </div>
+    ) : (
+      <p style="text-align: center; color: var(--sepia); padding: 3rem 0;">
+        Aucun article publié pour le moment.
+      </p>
+    )}
 
     <div style="text-align: center;">
       <a href="/blog" class="btn-secondary">Lire tous les articles →</a>

@@ -1,107 +1,771 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import PosterCard from '../../components/PosterCard.astro';
 import { getProduits } from '../../lib/data';
 
 const produits = await getProduits();
+
+function posterColor(titre: string): string {
+  const p = [
+    ['#4A3728','#C4622D'],['#2D3D5C','#2D7A9A'],['#3D2E5C','#8A4A9A'],
+    ['#2E4A3D','#4A8A6A'],['#4A4228','#9A8A2D'],['#5C2E2E','#9A2D2D'],
+    ['#2E3D4A','#4A6A8A'],['#3D4A2E','#6A8A4A'],['#4A2E3D','#8A4A6A'],
+    ['#3D2828','#8A5A2D'],['#282E4A','#4A5A8A'],['#2E4A28','#5A8A4A'],
+  ];
+  let h = 0;
+  for (let i = 0; i < titre.length; i++) h = (h * 31 + titre.charCodeAt(i)) & 0xffff;
+  const [c1, c2] = p[h % p.length];
+  return `linear-gradient(${120 + (h % 80)}deg, ${c1} 0%, ${c2} 100%)`;
+}
+
+const produitsJson = JSON.stringify(produits.map(p => ({
+  id: p.id, titre: p.titre, affichiste: p.affichiste,
+  annee: p.annee, categorie: p.categorie, theme: p.theme,
+  format: p.format, ref: p.ref, etat: p.etat,
+  stk_e: p.stk_e, stk_p: p.stk_p, stk_c: p.stk_c,
+  color: posterColor(p.titre),
+})));
 ---
 
 <BaseLayout
-  title="Collection — Hervé Affiches"
-  description="Découvrez notre sélection d'affiches publicitaires originales françaises des années 1900–1960, restaurées et entoilées avec soin."
+  title="Collection — L'Affiche Entoilée"
+  description="Sélection d'affiches originales restaurées et entoilées par Hervé."
 >
-  <!-- Header -->
-  <section
-    style="padding: 10rem 3rem 4rem; background: linear-gradient(160deg, var(--cream) 0%, var(--ivory) 100%); border-bottom: 1px solid rgba(139,111,71,0.2);"
-  >
-    <div style="max-width: 700px; margin: 0 auto; text-align: center;">
-      <p class="section-eyebrow" style="justify-content:center;">Collection</p>
-      <h1 style="font-size: clamp(2rem, 4vw, 3rem); margin: 1rem 0 1.5rem;">
-        Affiches disponibles
-      </h1>
-      <p style="font-size: 1.1rem; color: var(--sepia); font-weight: 300; line-height: 1.8;">
-        Pièces originales soigneusement sélectionnées et restaurées.
-        Toutes les affiches sont accompagnées d'une documentation complète.
-      </p>
-    </div>
-  </section>
 
-  <!-- Filter bar -->
-  <section class="section" style="padding-bottom: 0;">
-    <div class="filter-bar" id="filters">
-      <button class="filter-btn active" data-filter="all">Tout voir</button>
-      <button class="filter-btn" data-filter="entoilee">Entoilées</button>
-      <button class="filter-btn" data-filter="restauree">Restaurées</button>
-      <button class="filter-btn" data-filter="a-restaurer">À restaurer</button>
-    </div>
-  </section>
+<!-- ── HEADER ──────────────────────────────────── -->
+<header class="gallery-header">
+  <div>
+    <span class="eyebrow">Collection</span>
+    <h1>Affiches originales</h1>
+    <p class="gallery-subtitle">Laissez-vous guider vers la pièce qui vous correspond,<br>ou explorez la collection dans son intégralité.</p>
+  </div>
+  <div class="header-actions">
+    <span class="gallery-count">{produits.length} pièces</span>
+    <button id="btn-skip" class="btn-ghost-small">Voir toute la collection →</button>
+  </div>
+</header>
 
-  <!-- Products grid -->
-  <section class="section" style="padding-top: 2rem;">
-    {produits.length === 0 ? (
-      <div style="text-align: center; color: var(--sepia); padding: 4rem 0;">
-        <p style="font-size: 1.2rem;">Aucune affiche disponible pour le moment.</p>
-        <p style="margin-top: 0.5rem; font-size: 0.95rem;">Revenez bientôt — de nouvelles pièces arrivent régulièrement.</p>
+<!-- ── QUESTIONNAIRE ──────────────────────────── -->
+<section id="quiz-section">
+  <div class="quiz-wrap">
+
+    <!-- Progression -->
+    <div class="quiz-progress">
+      <div class="quiz-progress-meta">
+        <span class="quiz-progress-label">Trouver mon affiche</span>
+        <span class="quiz-progress-count"><span id="q-num">1</span> / 4</span>
       </div>
-    ) : (
-      <div class="products-grid" id="products-grid">
-        {produits.map((produit) => (
-          <div class="product-item" data-etat={produit.etat}>
-            <PosterCard
-              slug={produit.slug}
-              titre={produit.titre}
-              annee={produit.annee}
-              etat={produit.etat}
-              prix={produit.prix}
-              surDevis={produit.surDevis}
-              disponible={produit.disponible}
-              images={produit.images}
-              artiste={produit.artiste}
-            />
+      <div class="quiz-bar"><div class="quiz-bar-fill" id="q-bar" style="width:25%"></div></div>
+    </div>
+
+    <!-- Question -->
+    <div class="quiz-body">
+      <h2 class="quiz-question" id="quiz-question"></h2>
+      <div class="quiz-options" id="quiz-options"></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── RÉSULTATS ─────────────────────────────────── -->
+<section id="results-section" class="hidden">
+
+  <div class="results-header">
+    <div>
+      <p class="step-label">Sélection personnalisée</p>
+      <h2 class="results-title">Trois affiches pour vous</h2>
+    </div>
+    <div class="results-actions">
+      <button id="btn-reshuffle" class="btn-ghost-small" title="Nouvelle sélection dans les mêmes critères">↺ Autre sélection</button>
+      <button id="btn-reset" class="btn-ghost-small">← Recommencer</button>
+    </div>
+  </div>
+
+  <div class="results-grid" id="results-grid"></div>
+
+  <!-- Historique des sélections -->
+  <div id="history-wrap" class="history-wrap hidden">
+    <p class="step-label">Vos sélections précédentes</p>
+    <div class="history-list" id="history-list"></div>
+  </div>
+
+  <div class="results-footer">
+    <p>Ces pièces ont été choisies selon vos réponses. La collection complète en réserve bien d'autres.</p>
+    <button id="btn-all" class="btn-primary">Voir toute la collection</button>
+  </div>
+
+</section>
+
+<!-- ── COLLECTION COMPLÈTE ───────────────────────── -->
+<section id="full-section" class="hidden">
+  <div class="full-header">
+    <span class="gallery-count">{produits.length} affiches en collection</span>
+    <button id="btn-back-chat" class="btn-ghost-small">← Retour au guide</button>
+  </div>
+  <div class="gallery-grid" id="gallery-grid">
+    {produits.map((p, i) => (
+      <article class={`gallery-item ${i % 7 === 0 ? 'gallery-item--featured' : ''}`}>
+        <a href={`/produits/${p.id}`} class="gallery-link">
+          <div class="gallery-visual" style={`background:${posterColor(p.titre)};`}>
+            <div class="gallery-grain"></div>
+            <div class="gallery-placeholder-text">
+              <span class="gallery-placeholder-title">{p.titre}</span>
+              {p.annee && <span class="gallery-placeholder-year">{p.annee}</span>}
+            </div>
+            {p.etat && <div class="gallery-badge">{p.etat}</div>}
+            <div class="gallery-overlay"><span class="gallery-overlay-cta">Voir la fiche →</span></div>
           </div>
-        ))}
-      </div>
-    )}
+          <div class="gallery-caption">
+            <div class="gallery-caption-top">
+              <h2 class="gallery-title">{p.titre}</h2>
+              {p.ref && <span class="gallery-ref">{p.ref}</span>}
+            </div>
+            <div class="gallery-caption-bottom">
+              {p.affichiste && <span class="gallery-artist">{p.affichiste}</span>}
+              <div class="gallery-meta-row">
+                {p.annee && <span class="gallery-year">{p.annee}</span>}
+                {p.categorie && <span class="gallery-cat">{p.categorie}</span>}
+              </div>
+            </div>
+          </div>
+        </a>
+      </article>
+    ))}
+  </div>
+</section>
 
-    <p
-      id="no-results"
-      style="display:none; text-align:center; color:var(--sepia); padding:2rem 0; font-size:1.05rem;"
-    >
-      Aucune affiche dans cette catégorie pour le moment.
-    </p>
-  </section>
+<section class="gallery-cta">
+  <p>Vous recherchez une pièce spécifique ou souhaitez confier une affiche à l'atelier ?</p>
+  <a href="/contact" class="btn-primary">Contacter Hervé</a>
+</section>
 
-  <!-- Contact CTA -->
-  <section class="section section-alt" style="text-align: center;">
-    <p style="font-size: 1.05rem; color: var(--sepia); margin-bottom: 1.5rem; font-weight: 300;">
-      Vous recherchez une affiche spécifique ? Nous pouvons vous aider.
-    </p>
-    <a href="/contact" class="btn-primary">Contacter l'atelier</a>
-  </section>
 </BaseLayout>
 
+<script type="application/json" id="produits-data" set:html={produitsJson}></script>
+
+<style is:global>
+/* ── Header ────────────────────────────── */
+.gallery-header {
+  padding: 9rem 5rem 3rem;
+  background: var(--cream);
+  border-bottom: 1px solid rgba(139,111,71,0.12);
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 2rem;
+}
+.gallery-header-inner { max-width: 600px; }
+.eyebrow {
+  font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.4em;
+  text-transform: uppercase; color: var(--rust);
+  display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;
+}
+.eyebrow::before { content:''; width:1.5rem; height:1px; background:var(--rust); }
+.gallery-header h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2.2rem,4vw,3.5rem); font-weight: 400; color: var(--dark); line-height: 1.1; margin-bottom: 1rem;
+}
+.gallery-subtitle { font-size: 1rem; color: var(--sepia); line-height: 1.8; font-weight: 300; }
+.header-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 0.75rem; }
+.gallery-count {
+  font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.3em;
+  color: var(--sepia); opacity: 0.5; text-transform: uppercase;
+}
+
+/* ── Questionnaire ──────────────────────── */
+#quiz-section {
+  background: var(--cream);
+  border-top: 1px solid rgba(139,111,71,0.15);
+  border-bottom: 1px solid rgba(139,111,71,0.15);
+}
+.quiz-wrap {
+  max-width: 680px; margin: 0 auto;
+  padding: 4rem 2rem 5rem;
+}
+
+/* Barre de progression */
+.quiz-progress { margin-bottom: 3rem; }
+.quiz-progress-meta {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 0.75rem;
+}
+.quiz-progress-label {
+  font-family: 'DM Mono', monospace; font-size: 0.55rem; letter-spacing: 0.35em;
+  text-transform: uppercase; color: var(--rust);
+}
+.quiz-progress-count {
+  font-family: 'DM Mono', monospace; font-size: 0.55rem; letter-spacing: 0.2em;
+  color: var(--sepia); opacity: 0.5;
+}
+.quiz-bar {
+  height: 2px; background: rgba(139,111,71,0.12); border-radius: 2px; overflow: hidden;
+}
+.quiz-bar-fill {
+  height: 100%; background: var(--rust);
+  border-radius: 2px; transition: width 0.4s ease;
+}
+
+/* Question */
+.quiz-body { animation: fadeSlideUp 0.3s ease both; }
+.quiz-question {
+  font-family: 'DM Mono', monospace;
+  font-size: clamp(0.75rem, 1.5vw, 0.9rem);
+  letter-spacing: 0.08em;
+  color: var(--dark); line-height: 1.8;
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(139,111,71,0.15);
+}
+
+/* Options — boutons simples */
+.quiz-options {
+  display: flex; flex-direction: column; gap: 0.5rem;
+}
+.quiz-opt {
+  display: flex; align-items: center; gap: 0.85rem;
+  padding: 0.85rem 1.1rem;
+  background: #fff;
+  border: 1px solid #8B6F47;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  animation: fadeSlideUp 0.3s ease both;
+  text-align: left; width: 100%;
+  font-family: 'DM Mono', monospace !important;
+}
+.quiz-opt:hover { background: var(--rust); border-color: var(--rust); }
+.quiz-opt:active { opacity: 0.85; }
+
+.quiz-opt-letter {
+  font-family: 'DM Mono', monospace; font-size: 0.55rem; letter-spacing: 0.1em;
+  color: #8B6F47; flex-shrink: 0; width: 1rem;
+  transition: color 0.12s;
+}
+.quiz-opt:hover .quiz-opt-letter { color: rgba(255,255,255,0.6); }
+
+.quiz-opt-body { flex: 1; }
+.quiz-opt-label {
+  font-family: 'DM Mono', monospace; font-size: 0.7rem;
+  letter-spacing: 0.06em; color: var(--dark);
+  display: block; transition: color 0.12s;
+}
+.quiz-opt:hover .quiz-opt-label { color: #fff; }
+
+.quiz-opt-sub {
+  font-family: 'DM Mono', monospace; font-size: 0.55rem;
+  letter-spacing: 0.04em; color: #8B6F47; opacity: 0.7;
+  display: block; margin-top: 0.2rem; transition: color 0.12s, opacity 0.12s;
+}
+.quiz-opt:hover .quiz-opt-sub { color: rgba(255,255,255,0.7); opacity: 1; }
+
+.quiz-opt-arrow { display: none; }
+
+.quiz-opt:nth-child(1) { animation-delay: 0.04s; }
+.quiz-opt:nth-child(2) { animation-delay: 0.08s; }
+.quiz-opt:nth-child(3) { animation-delay: 0.12s; }
+.quiz-opt:nth-child(4) { animation-delay: 0.16s; }
+.quiz-opt:nth-child(5) { animation-delay: 0.20s; }
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Résultats ──────────────────────────── */
+.results-header {
+  padding: 3rem 5rem 2rem; background: var(--cream);
+  border-bottom: 1px solid rgba(139,111,71,0.12);
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 2rem;
+}
+.step-label {
+  font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.35em;
+  text-transform: uppercase; color: var(--rust); margin-bottom: 0.5rem;
+}
+.results-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(1.6rem,3vw,2.5rem); font-weight: 400; color: var(--dark);
+}
+.results-actions { display: flex; gap: 0.75rem; align-items: center; }
+.results-grid {
+  display: grid; grid-template-columns: repeat(3,1fr);
+  gap: 2px; background: rgba(139,111,71,0.08); padding: 2px;
+}
+
+/* ── Carte résultat ─────────────────────── */
+.result-card { background: var(--cream); }
+.result-link { display: block; text-decoration: none; color: inherit; }
+.result-visual {
+  position: relative; aspect-ratio: 3/4; overflow: hidden;
+  transition: transform 0.5s ease;
+}
+.result-link:hover .result-visual { transform: scale(1.02); }
+.result-grain {
+  position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E");
+}
+.result-placeholder {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-end; padding: 2rem; z-index: 2;
+}
+.result-placeholder-title {
+  font-family: 'Playfair Display', serif; font-size: clamp(0.9rem,2vw,1.4rem);
+  color: rgba(255,255,255,0.8); text-align: center; line-height: 1.2;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.4);
+}
+.result-placeholder-year {
+  font-family: 'DM Mono', monospace; font-size: 0.55rem; letter-spacing: 0.3em;
+  color: rgba(255,255,255,0.4); margin-top: 0.4rem;
+}
+.result-badge {
+  position: absolute; top:1rem; left:1rem; z-index:3;
+  font-family: 'DM Mono', monospace; font-size: 0.55rem; letter-spacing: 0.2em;
+  background: rgba(0,0,0,0.45); color: rgba(255,255,255,0.8);
+  padding: 0.25rem 0.6rem; backdrop-filter: blur(4px);
+}
+.result-overlay {
+  position: absolute; inset:0; background: rgba(26,20,16,0.55);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.35s; z-index: 4;
+}
+.result-link:hover .result-overlay { opacity: 1; }
+.result-overlay-cta {
+  font-family: 'DM Mono', monospace; font-size: 0.65rem; letter-spacing: 0.3em;
+  text-transform: uppercase; color: var(--cream);
+  border: 1px solid rgba(245,240,232,0.5); padding: 0.7rem 1.4rem;
+}
+.result-caption {
+  padding: 1.25rem 1.5rem 1.5rem; border-top: 2px solid var(--ivory);
+  transition: border-color 0.2s; display: flex; flex-direction: column; gap: 0.5rem;
+}
+.result-link:hover .result-caption { border-color: var(--rust); }
+.result-title { font-family: 'Playfair Display', serif; font-size: 1rem; font-weight: 400; color: var(--dark); line-height: 1.3; }
+.result-artist { font-family: 'Cormorant Garamond', serif; font-size: 0.9rem; font-style: italic; color: var(--sepia); }
+.result-meta { display: flex; gap: 1rem; }
+.result-year, .result-cat { font-family: 'DM Mono', monospace; font-size: 0.55rem; letter-spacing: 0.2em; color: var(--sepia); opacity: 0.6; text-transform: uppercase; }
+.result-cat::before { content:'·'; margin-right:0.5rem; }
+
+/* ── Historique ─────────────────────────── */
+.history-wrap {
+  padding: 3rem 5rem;
+  background: var(--ivory);
+  border-top: 1px solid rgba(139,111,71,0.1);
+}
+.history-wrap .step-label { margin-bottom: 1.5rem; }
+.history-list { display: flex; flex-direction: column; gap: 1rem; }
+.history-entry {
+  display: flex; align-items: center; gap: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: var(--cream); border: 1px solid rgba(139,111,71,0.12);
+  cursor: pointer; transition: border-color 0.2s;
+}
+.history-entry:hover { border-color: var(--rust); }
+.history-thumbs { display: flex; gap: 4px; }
+.history-thumb {
+  width: 32px; height: 42px; flex-shrink: 0; border-radius: 1px;
+}
+.history-info { flex: 1; }
+.history-time {
+  font-family: 'DM Mono', monospace; font-size: 0.55rem; letter-spacing: 0.2em;
+  color: var(--sepia); opacity: 0.5; text-transform: uppercase; margin-bottom: 0.25rem;
+}
+.history-titles { font-size: 0.85rem; color: var(--sepia); line-height: 1.5; }
+.history-restore {
+  font-family: 'DM Mono', monospace; font-size: 0.55rem; letter-spacing: 0.15em;
+  color: var(--rust); text-transform: uppercase; white-space: nowrap;
+}
+
+/* ── Footer résultats ───────────────────── */
+.results-footer {
+  padding: 4rem 5rem; text-align: center; background: var(--ivory);
+  border-top: 1px solid rgba(139,111,71,0.1);
+}
+.results-footer p { color: var(--sepia); font-size: 0.95rem; margin-bottom: 1.5rem; font-weight: 300; line-height: 1.8; }
+
+/* ── Grille complète ────────────────────── */
+.full-header {
+  padding: 2rem 5rem; background: var(--ivory);
+  border-bottom: 1px solid rgba(139,111,71,0.1);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.gallery-grid {
+  display: grid; grid-template-columns: repeat(3,1fr);
+  gap: 2px; background: rgba(139,111,71,0.08); padding: 2px;
+}
+.gallery-item--featured { grid-column: span 2; }
+.gallery-link { display: block; text-decoration: none; color: inherit; background: var(--cream); }
+.gallery-visual {
+  position: relative; aspect-ratio: 3/4; overflow: hidden; transition: transform 0.5s ease;
+}
+.gallery-item--featured .gallery-visual { aspect-ratio: 16/9; }
+.gallery-link:hover .gallery-visual { transform: scale(1.02); }
+.gallery-grain {
+  position: absolute; inset:0; pointer-events: none; z-index:1;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E");
+}
+.gallery-placeholder-text {
+  position: absolute; inset:0; display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-end; padding: 2rem; z-index: 2;
+}
+.gallery-placeholder-title {
+  font-family: 'Playfair Display', serif; font-size: clamp(0.9rem,2vw,1.5rem);
+  color: rgba(255,255,255,0.75); text-align: center; line-height: 1.2;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.4);
+}
+.gallery-placeholder-year {
+  font-family: 'DM Mono', monospace; font-size: 0.55rem; letter-spacing: 0.3em;
+  color: rgba(255,255,255,0.4); margin-top: 0.4rem;
+}
+.gallery-badge {
+  position: absolute; top:1rem; left:1rem; z-index:3;
+  font-family: 'DM Mono', monospace; font-size: 0.55rem; letter-spacing: 0.2em;
+  background: rgba(0,0,0,0.45); color: rgba(255,255,255,0.8);
+  padding: 0.25rem 0.6rem; backdrop-filter: blur(4px);
+}
+.gallery-overlay {
+  position: absolute; inset:0; background: rgba(26,20,16,0.55);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.35s; z-index: 4;
+}
+.gallery-link:hover .gallery-overlay { opacity: 1; }
+.gallery-overlay-cta {
+  font-family: 'DM Mono', monospace; font-size: 0.65rem; letter-spacing: 0.3em;
+  text-transform: uppercase; color: var(--cream);
+  border: 1px solid rgba(245,240,232,0.5); padding: 0.7rem 1.4rem;
+}
+.gallery-caption {
+  padding: 1.25rem 1.5rem 1.5rem; border-top: 2px solid var(--ivory);
+  display: flex; flex-direction: column; gap: 0.6rem; transition: border-color 0.2s;
+}
+.gallery-link:hover .gallery-caption { border-color: var(--rust); }
+.gallery-caption-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
+.gallery-title { font-family: 'Playfair Display', serif; font-size: 1rem; font-weight: 400; color: var(--dark); line-height: 1.3; }
+.gallery-ref { font-family: 'DM Mono', monospace; font-size: 0.5rem; letter-spacing: 0.15em; color: var(--sepia); opacity: 0.5; white-space: nowrap; padding-top: 0.2rem; }
+.gallery-artist { font-family: 'Cormorant Garamond', serif; font-size: 0.9rem; font-style: italic; color: var(--sepia); }
+.gallery-caption-bottom { display: flex; flex-direction: column; gap: 0.3rem; }
+.gallery-meta-row { display: flex; gap: 1rem; flex-wrap: wrap; }
+.gallery-year, .gallery-cat { font-family: 'DM Mono', monospace; font-size: 0.55rem; letter-spacing: 0.2em; color: var(--sepia); opacity: 0.6; text-transform: uppercase; }
+.gallery-cat::before { content:'·'; margin-right:0.5rem; }
+
+/* ── CTA ────────────────────────────────── */
+.gallery-cta { padding: 5rem; text-align: center; background: var(--ivory); border-top: 1px solid rgba(139,111,71,0.12); }
+.gallery-cta p { font-size: 1.05rem; color: var(--sepia); font-weight: 300; margin-bottom: 2rem; line-height: 1.8; }
+
+/* ── Boutons ────────────────────────────── */
+.btn-ghost-small {
+  font-family: 'DM Mono', monospace; font-size: 0.58rem; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--sepia); background: transparent;
+  border: 1px solid rgba(139,111,71,0.25); padding: 0.5rem 1rem;
+  cursor: pointer; transition: all 0.2s; white-space: nowrap;
+}
+.btn-ghost-small:hover { border-color: var(--rust); color: var(--rust); }
+
+.hidden { display: none !important; }
+
+@media (max-width: 900px) {
+  .gallery-header, .results-header, .full-header { padding: 7rem 2rem 2rem; flex-direction: column; align-items: flex-start; }
+  .results-grid, .gallery-grid { grid-template-columns: repeat(2,1fr); }
+  .gallery-item--featured { grid-column: span 2; }
+  .history-wrap, .results-footer, .gallery-cta { padding: 3rem 2rem; }
+  .chat-wrap { padding: 3rem 1.5rem 1.5rem; }
+}
+@media (max-width: 580px) {
+  .results-grid, .gallery-grid { grid-template-columns: 1fr; }
+  .gallery-item--featured { grid-column: span 1; }
+  .gallery-item--featured .gallery-visual { aspect-ratio: 3/4; }
+  .results-actions { flex-direction: column; gap: 0.5rem; }
+}
+</style>
+
 <script>
-  const filters = document.querySelectorAll<HTMLButtonElement>('.filter-btn');
-  const items = document.querySelectorAll<HTMLElement>('.product-item');
-  const noResults = document.getElementById('no-results');
+// ── Données ──────────────────────────────────────────
+const PRODUITS: any[] = JSON.parse(
+  document.getElementById('produits-data')?.textContent ?? '[]'
+);
 
-  filters.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      filters.forEach((b) => b.classList.remove('active'));
-      btn.classList.add('active');
+// ── État ─────────────────────────────────────────────
+const answers: Record<string, string> = {};
+let currentAnswers: any[] = [];
 
-      const filter = btn.dataset.filter;
-      let visible = 0;
+// ── Questions ────────────────────────────────────────
+const STEPS = [
+  {
+    key: 'periode',
+    question: "Quelle époque vous attire ?",
+    options: [
+      { value: 'avant-1950', label: "L'âge d'or", sub: "Avant 1950 — affiches de l'entre-deux-guerres" },
+      { value: '1950-1970',  label: "Les Trente Glorieuses", sub: "1950–1970 — modernisme et couleurs franches" },
+      { value: '1970+',      label: "L'ère du cinéma", sub: "Années 70 et au-delà" },
+      { value: 'tout',       label: "Peu importe", sub: "Je m'ouvre à toutes les périodes" },
+    ]
+  },
+  {
+    key: 'univers',
+    question: "Quel univers vous parle le plus ?",
+    options: [
+      { value: 'cinema',    label: "Cinéma", sub: "Films cultes, acteurs, réalisateurs" },
+      { value: 'voyage',    label: "Voyage & tourisme", sub: "Destinations, compagnies, mer et montagne" },
+      { value: 'spectacle', label: "Spectacle & culture", sub: "Théâtre, musique, expositions" },
+      { value: 'publicite', label: "Publicité vintage", sub: "Marques, produits, affiches commerciales" },
+      { value: 'tout',      label: "Tout m'intéresse", sub: "Surprenez-moi" },
+    ]
+  },
+  {
+    key: 'etat',
+    question: "Quel état recherchez-vous ?",
+    options: [
+      { value: 'A',    label: "État exceptionnel", sub: "Très bel état de conservation — A ou A+" },
+      { value: 'B',    label: "Très bon état", sub: "Quelques légères marques du temps — B ou B+" },
+      { value: 'tout', label: "Peu importe", sub: "L'histoire portée par la pièce compte davantage" },
+    ]
+  },
+  {
+    key: 'usage',
+    question: "Pour quelle occasion ?",
+    options: [
+      { value: 'deco',           label: "Décoration intérieure", sub: "Une pièce maîtresse pour mon intérieur" },
+      { value: 'collection',     label: "Collection personnelle", sub: "J'accumule avec passion et méthode" },
+      { value: 'cadeau',         label: "Offrir", sub: "Un cadeau original et mémorable" },
+      { value: 'investissement', label: "Investissement", sub: "Une valeur sûre qui s'apprécie" },
+    ]
+  },
+];
 
-      items.forEach((item) => {
-        const show = filter === 'all' || item.dataset.etat === filter;
-        item.style.display = show ? '' : 'none';
-        if (show) visible++;
-      });
+let stepIndex = 0;
+const LETTERS = ['A', 'B', 'C', 'D', 'E'];
 
-      if (noResults) {
-        noResults.style.display = visible === 0 ? 'block' : 'none';
-      }
+// ── Rendu du questionnaire ────────────────────────────
+function renderStep(): void {
+  const step = STEPS[stepIndex];
+
+  // Progression
+  document.getElementById('q-num')!.textContent = String(stepIndex + 1);
+  (document.getElementById('q-bar') as HTMLElement).style.width =
+    `${((stepIndex + 1) / STEPS.length) * 100}%`;
+
+  // Question
+  const qEl = document.getElementById('quiz-question')!;
+  qEl.textContent = step.question;
+
+  // Options
+  const optEl = document.getElementById('quiz-options')!;
+  optEl.innerHTML = '';
+  step.options.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'quiz-opt';
+    btn.style.animationDelay = `${i * 0.05}s`;
+    btn.innerHTML = `
+      <span class="quiz-opt-letter">${LETTERS[i]}</span>
+      <span class="quiz-opt-body">
+        <span class="quiz-opt-label">${opt.label}</span>
+        ${opt.sub ? `<span class="quiz-opt-sub">${opt.sub}</span>` : ''}
+      </span>
+      <span class="quiz-opt-arrow">→</span>`;
+    btn.addEventListener('click', () => onSelect(opt));
+    optEl.appendChild(btn);
+  });
+
+  // Animation du bloc
+  const body = document.querySelector('.quiz-body') as HTMLElement;
+  body.style.animation = 'none';
+  void body.offsetWidth;
+  body.style.animation = 'fadeSlideUp 0.3s ease both';
+}
+
+function onSelect(opt: any): void {
+  answers[STEPS[stepIndex].key] = opt.value;
+  stepIndex++;
+  if (stepIndex < STEPS.length) {
+    renderStep();
+  } else {
+    showResults(false);
+  }
+}
+
+function startQuiz(): void {
+  stepIndex = 0;
+  Object.keys(answers).forEach(k => delete answers[k]);
+  document.getElementById('quiz-section')!.classList.remove('hidden');
+  renderStep();
+}
+
+// ── Sélection & résultats ────────────────────────────
+
+function getYear(annee: string | null): number {
+  if (!annee) return 0;
+  const m = annee.match(/\d{4}/);
+  return m ? parseInt(m[0]) : 0;
+}
+
+function matchPeriode(p: any): boolean {
+  const v = answers['periode'];
+  if (!v || v === 'tout') return true;
+  const y = getYear(p.annee);
+  if (!y) return true;
+  if (v === 'avant-1950') return y < 1950;
+  if (v === '1950-1970') return y >= 1950 && y <= 1970;
+  if (v === '1970+') return y > 1970;
+  return true;
+}
+
+function matchUnivers(p: any): boolean {
+  const v = answers['univers'];
+  if (!v || v === 'tout') return true;
+  const hay = ((p.categorie ?? '') + ' ' + (p.theme ?? '')).toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (v === 'cinema') return hay.includes('cin') || hay.includes('film') || hay.includes('court');
+  if (v === 'voyage') return hay.includes('voyage') || hay.includes('touris') || hay.includes('transport');
+  if (v === 'spectacle') return hay.includes('spectac') || hay.includes('theatre') || hay.includes('music') || hay.includes('expo');
+  if (v === 'publicite') return hay.includes('public') || hay.includes('marque') || hay.includes('produit');
+  return false;
+}
+
+function matchEtat(p: any): boolean {
+  const v = answers['etat'];
+  if (!v || v === 'tout') return true;
+  const e = (p.etat ?? '').toString().trim();
+  if (v === 'A') return e.startsWith('A');
+  if (v === 'B') return e.startsWith('B');
+  return true;
+}
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function computeSelection(exclude: any[] = []): any[] {
+  const excludeIds = new Set(exclude.map(p => p.id));
+  let pool = PRODUITS.filter(p => !excludeIds.has(p.id));
+
+  let matches = pool.filter(p => matchPeriode(p) && matchUnivers(p) && matchEtat(p));
+  if (matches.length < 3) matches = pool.filter(p => matchPeriode(p) && matchUnivers(p));
+  if (matches.length < 3) matches = pool.filter(p => matchPeriode(p));
+  if (matches.length < 3) matches = [...pool];
+
+  return shuffle(matches).slice(0, 3);
+}
+
+function renderCard(p: any): string {
+  return `
+    <div class="result-card">
+      <a href="/produits/${p.id}" class="result-link">
+        <div class="result-visual" style="background:${p.color};">
+          <div class="result-grain"></div>
+          <div class="result-placeholder">
+            <span class="result-placeholder-title">${p.titre}</span>
+            ${p.annee ? `<span class="result-placeholder-year">${p.annee}</span>` : ''}
+          </div>
+          ${p.etat ? `<div class="result-badge">${p.etat}</div>` : ''}
+          <div class="result-overlay"><span class="result-overlay-cta">Voir la fiche →</span></div>
+        </div>
+        <div class="result-caption">
+          <h2 class="result-title">${p.titre}</h2>
+          ${p.affichiste ? `<span class="result-artist">${p.affichiste}</span>` : ''}
+          <div class="result-meta">
+            ${p.annee ? `<span class="result-year">${p.annee}</span>` : ''}
+            ${p.categorie ? `<span class="result-cat">${p.categorie}</span>` : ''}
+          </div>
+        </div>
+      </a>
+    </div>`;
+}
+
+// ── Historique (localStorage) ────────────────────────
+type HistoryEntry = { ts: number; answers: Record<string,string>; selection: any[] };
+const HISTORY_KEY = 'ae_selection_history';
+
+function loadHistory(): HistoryEntry[] {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) ?? '[]'); }
+  catch { return []; }
+}
+function saveToHistory(sel: any[]): void {
+  const h = loadHistory();
+  h.unshift({ ts: Date.now(), answers: { ...answers }, selection: sel });
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(h.slice(0, 8)));
+}
+function renderHistory(): void {
+  const h = loadHistory();
+  const wrap = document.getElementById('history-wrap')!;
+  const list = document.getElementById('history-list')!;
+  if (h.length < 2) { wrap.classList.add('hidden'); return; }
+
+  wrap.classList.remove('hidden');
+  list.innerHTML = h.slice(1).map((entry, i) => {
+    const time = new Date(entry.ts).toLocaleDateString('fr-FR', { day:'numeric', month:'long', hour:'2-digit', minute:'2-digit' });
+    const thumbs = entry.selection.map(p =>
+      `<div class="history-thumb" style="background:${p.color};"></div>`
+    ).join('');
+    const titles = entry.selection.map(p => p.titre).join(' · ');
+    return `
+      <div class="history-entry" data-idx="${i + 1}">
+        <div class="history-thumbs">${thumbs}</div>
+        <div class="history-info">
+          <div class="history-time">${time}</div>
+          <div class="history-titles">${titles}</div>
+        </div>
+        <span class="history-restore">Revoir →</span>
+      </div>`;
+  }).join('');
+
+  list.querySelectorAll<HTMLElement>('.history-entry').forEach(el => {
+    el.addEventListener('click', () => {
+      const idx = parseInt(el.dataset.idx ?? '0');
+      const entry = h[idx];
+      if (!entry) return;
+      document.getElementById('results-grid')!.innerHTML = entry.selection.map(renderCard).join('');
+      window.scrollTo({ top: document.getElementById('results-section')!.offsetTop - 80, behavior: 'smooth' });
     });
   });
+}
+
+function showResults(isShuffle: boolean): void {
+  if (!isShuffle) {
+    currentAnswers = computeSelection();
+    saveToHistory(currentAnswers);
+  } else {
+    currentAnswers = computeSelection(currentAnswers);
+    saveToHistory(currentAnswers);
+  }
+
+  document.getElementById('results-grid')!.innerHTML = currentAnswers.map(renderCard).join('');
+  renderHistory();
+
+  document.getElementById('quiz-section')!.classList.add('hidden');
+  document.getElementById('results-section')!.classList.remove('hidden');
+  document.getElementById('full-section')!.classList.add('hidden');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Boutons ──────────────────────────────────────────
+document.getElementById('btn-reshuffle')?.addEventListener('click', () => {
+  showResults(true);
+});
+
+document.getElementById('btn-reset')?.addEventListener('click', () => {
+  document.getElementById('results-section')!.classList.add('hidden');
+  document.getElementById('quiz-section')!.classList.remove('hidden');
+  startQuiz();
+  window.scrollTo({ top: document.getElementById('quiz-section')!.offsetTop - 80, behavior: 'smooth' });
+});
+
+document.getElementById('btn-all')?.addEventListener('click', () => {
+  document.getElementById('results-section')!.classList.add('hidden');
+  document.getElementById('full-section')!.classList.remove('hidden');
+  window.scrollTo({ top: document.getElementById('full-section')!.offsetTop - 80, behavior: 'smooth' });
+});
+
+document.getElementById('btn-skip')?.addEventListener('click', () => {
+  document.getElementById('quiz-section')!.classList.add('hidden');
+  document.getElementById('results-section')!.classList.add('hidden');
+  document.getElementById('full-section')!.classList.remove('hidden');
+  window.scrollTo({ top: document.getElementById('full-section')!.offsetTop - 80, behavior: 'smooth' });
+});
+
+document.getElementById('btn-back-chat')?.addEventListener('click', () => {
+  document.getElementById('full-section')!.classList.add('hidden');
+  document.getElementById('quiz-section')!.classList.remove('hidden');
+  window.scrollTo({ top: document.getElementById('quiz-section')!.offsetTop - 80, behavior: 'smooth' });
+});
+
+// ── Init ─────────────────────────────────────────────
+startQuiz();
 </script>

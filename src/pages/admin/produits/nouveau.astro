@@ -1,62 +1,60 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
-import { writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { createProduit } from '../../../lib/data';
 
 let error = '';
-let success = false;
 
 if (Astro.request.method === 'POST') {
   try {
     const data = await Astro.request.formData();
 
     const titre = (data.get('titre') as string)?.trim();
-    const description = (data.get('description') as string)?.trim();
-    const annee = (data.get('annee') as string)?.trim();
-    const dimensions = (data.get('dimensions') as string)?.trim() || undefined;
-    const etat = data.get('etat') as string;
-    const prixRaw = data.get('prix') as string;
-    const prix = prixRaw ? parseInt(prixRaw, 10) : undefined;
-    const surDevis = data.get('surDevis') === 'on';
-    const disponible = data.get('disponible') !== 'off';
-    const artiste = (data.get('artiste') as string)?.trim() || undefined;
-    const imprimeur = (data.get('imprimeur') as string)?.trim() || undefined;
+    const ref = (data.get('ref') as string)?.trim() || null;
+    const description = (data.get('description') as string)?.trim() || null;
+    const annee = (data.get('annee') as string)?.trim() || null;
+    const categorie = (data.get('categorie') as string)?.trim() || null;
+    const theme = (data.get('theme') as string)?.trim() || null;
+    const format = (data.get('format') as string)?.trim() || null;
+    const impression = (data.get('impression') as string)?.trim() || null;
+    const etat = (data.get('etat') as string) || null;
+    const auth = (data.get('auth') as string)?.trim() || null;
+    const stk_e = parseInt((data.get('stk_e') as string) || '0', 10) || 0;
+    const stk_p = parseInt((data.get('stk_p') as string) || '0', 10) || 0;
+    const stk_c = parseInt((data.get('stk_c') as string) || '0', 10) || 0;
+    const disponible = data.get('disponible') === 'on';
+    const observations = (data.get('observations') as string)?.trim() || null;
+    const commentaires = (data.get('commentaires') as string)?.trim() || null;
+    const affichiste = (data.get('affichiste') as string)?.trim() || null;
+    const histoire_affichiste = (data.get('histoire_affichiste') as string)?.trim() || null;
+    const realisateur = (data.get('realisateur') as string)?.trim() || null;
+    const scenariste = (data.get('scenariste') as string)?.trim() || null;
+    const musique = (data.get('musique') as string)?.trim() || null;
+    const acteurs = (data.get('acteurs') as string)?.trim() || null;
+    const studio = (data.get('studio') as string)?.trim() || null;
+    const prixRaw = (data.get('prix') as string)?.trim();
+    const prix = prixRaw ? parseInt(prixRaw, 10) : null;
+    const photosRaw = (data.get('photos') as string)?.trim() || '';
+    const photos = photosRaw ? photosRaw.split('\n').map(s => s.trim()).filter(Boolean) : [];
 
-    if (!titre || !description || !annee || !etat) {
-      error = 'Les champs titre, description, année et état sont obligatoires.';
+    if (!titre) {
+      error = 'Le champ titre est obligatoire.';
     } else {
-      // Generate slug from titre
-      const slug = titre
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
+      const nouveau = await createProduit({
+        ref, titre, description, format, annee, auth, impression,
+        categorie, theme, stk_e, stk_p, stk_c, etat, observations,
+        affichiste, histoire_affichiste, commentaires, acteurs,
+        realisateur, scenariste, musique, studio, photos, prix, disponible,
+      });
 
-      const produitData = {
-        titre,
-        description,
-        annee,
-        ...(dimensions && { dimensions }),
-        etat,
-        ...(prix && !surDevis && { prix }),
-        surDevis,
-        disponible,
-        images: [],
-        ...(artiste && { artiste }),
-        ...(imprimeur && { imprimeur }),
-      };
-
-      // Write to content directory
-      const contentDir = join(process.cwd(), 'src', 'content', 'produits');
-      const filePath = join(contentDir, `${slug}.json`);
-      await writeFile(filePath, JSON.stringify(produitData, null, 2), 'utf-8');
-
-      return Astro.redirect('/admin/produits?success=created');
+      if (!nouveau) {
+        error = 'Erreur lors de la création du produit. Vérifiez les logs.';
+      } else {
+        return Astro.redirect('/admin/produits?success=created');
+      }
     }
   } catch (e) {
     console.error(e);
-    error = 'Erreur lors de la création du produit. Vérifiez les logs.';
+    error = 'Erreur lors de la création du produit.';
   }
 }
 ---
@@ -71,11 +69,14 @@ if (Astro.request.method === 'POST') {
 
   <form method="POST" action="/admin/produits/nouveau">
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
-      <!-- Left column -->
-      <div>
+
+      <!-- Colonne gauche -->
+      <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+
+        <!-- Identification -->
         <div class="admin-card">
           <h2 style="font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(245,240,232,0.5); margin-bottom: 1.5rem;">
-            Informations principales
+            Identification
           </h2>
 
           <div class="admin-form-group">
@@ -83,45 +84,93 @@ if (Astro.request.method === 'POST') {
             <input class="admin-input" type="text" id="titre" name="titre" required placeholder="Ex: Air France — Paris New York" />
           </div>
 
-          <div class="admin-form-group">
-            <label class="admin-label" for="description">Description *</label>
-            <textarea class="admin-textarea" id="description" name="description" required rows="4" placeholder="Description de l'affiche..."></textarea>
-          </div>
-
           <div class="admin-grid-2">
             <div class="admin-form-group">
-              <label class="admin-label" for="annee">Année *</label>
-              <input class="admin-input" type="text" id="annee" name="annee" required placeholder="c. 1949" />
+              <label class="admin-label" for="ref">Référence</label>
+              <input class="admin-input" type="text" id="ref" name="ref" placeholder="AF-1949-001" />
             </div>
             <div class="admin-form-group">
-              <label class="admin-label" for="dimensions">Dimensions</label>
-              <input class="admin-input" type="text" id="dimensions" name="dimensions" placeholder="62 × 100 cm" />
+              <label class="admin-label" for="annee">Année</label>
+              <input class="admin-input" type="text" id="annee" name="annee" placeholder="c. 1949" />
             </div>
           </div>
 
           <div class="admin-grid-2">
             <div class="admin-form-group">
-              <label class="admin-label" for="artiste">Artiste</label>
-              <input class="admin-input" type="text" id="artiste" name="artiste" placeholder="Roger Broders" />
+              <label class="admin-label" for="categorie">Catégorie</label>
+              <input class="admin-input" type="text" id="categorie" name="categorie" placeholder="Tourisme, Cinéma..." />
             </div>
             <div class="admin-form-group">
-              <label class="admin-label" for="imprimeur">Imprimeur</label>
-              <input class="admin-input" type="text" id="imprimeur" name="imprimeur" placeholder="Imp. Moullot, Marseille" />
+              <label class="admin-label" for="theme">Thème</label>
+              <input class="admin-input" type="text" id="theme" name="theme" placeholder="Aviation, Mer..." />
+            </div>
+          </div>
+
+          <div class="admin-grid-2">
+            <div class="admin-form-group">
+              <label class="admin-label" for="format">Format / Dimensions</label>
+              <input class="admin-input" type="text" id="format" name="format" placeholder="62 × 100 cm" />
+            </div>
+            <div class="admin-form-group">
+              <label class="admin-label" for="impression">Impression / Éditeur</label>
+              <input class="admin-input" type="text" id="impression" name="impression" placeholder="Imp. Moullot" />
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Right column -->
-      <div>
+        <!-- Description -->
         <div class="admin-card">
           <h2 style="font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(245,240,232,0.5); margin-bottom: 1.5rem;">
-            État & Prix
+            Description
           </h2>
 
           <div class="admin-form-group">
-            <label class="admin-label" for="etat">État *</label>
-            <select class="admin-select" id="etat" name="etat" required>
+            <label class="admin-label" for="description">Description publique</label>
+            <textarea class="admin-textarea" id="description" name="description" rows="4" placeholder="Description de l'affiche visible sur le site..."></textarea>
+          </div>
+
+          <div class="admin-form-group">
+            <label class="admin-label" for="observations">Observations (interne)</label>
+            <textarea class="admin-textarea" id="observations" name="observations" rows="2" placeholder="Notes internes sur l'état, la provenance..."></textarea>
+          </div>
+
+          <div class="admin-form-group">
+            <label class="admin-label" for="commentaires">Commentaires (interne)</label>
+            <textarea class="admin-textarea" id="commentaires" name="commentaires" rows="2" placeholder="Commentaires internes..."></textarea>
+          </div>
+        </div>
+
+        <!-- Affichiste -->
+        <div class="admin-card">
+          <h2 style="font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(245,240,232,0.5); margin-bottom: 1.5rem;">
+            Affichiste
+          </h2>
+
+          <div class="admin-form-group">
+            <label class="admin-label" for="affichiste">Nom de l'affichiste</label>
+            <input class="admin-input" type="text" id="affichiste" name="affichiste" placeholder="Roger Broders" />
+          </div>
+
+          <div class="admin-form-group">
+            <label class="admin-label" for="histoire_affichiste">Biographie / Histoire</label>
+            <textarea class="admin-textarea" id="histoire_affichiste" name="histoire_affichiste" rows="4" placeholder="Courte biographie de l'affichiste..."></textarea>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Colonne droite -->
+      <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+
+        <!-- État & Stock -->
+        <div class="admin-card">
+          <h2 style="font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(245,240,232,0.5); margin-bottom: 1.5rem;">
+            État & Stock
+          </h2>
+
+          <div class="admin-form-group">
+            <label class="admin-label" for="etat">État</label>
+            <select class="admin-select" id="etat" name="etat">
               <option value="">Sélectionner...</option>
               <option value="entoilee">Entoilée</option>
               <option value="restauree">Restaurée</option>
@@ -130,14 +179,23 @@ if (Astro.request.method === 'POST') {
           </div>
 
           <div class="admin-form-group">
-            <label class="admin-label" for="prix">Prix (€)</label>
-            <input class="admin-input" type="number" id="prix" name="prix" placeholder="2400" min="0" />
-            <p style="font-size: 0.75rem; color: rgba(245,240,232,0.3); margin-top: 0.3rem;">Laissez vide si sur devis</p>
+            <label class="admin-label" for="auth">Authenticité</label>
+            <input class="admin-input" type="text" id="auth" name="auth" placeholder="Original, Reproduction..." />
           </div>
 
-          <div class="admin-form-group" style="display: flex; align-items: center; gap: 0.75rem;">
-            <input type="checkbox" id="surDevis" name="surDevis" style="width: 16px; height: 16px; accent-color: var(--rust);" />
-            <label class="admin-label" for="surDevis" style="margin: 0;">Sur devis uniquement</label>
+          <div class="admin-grid-2" style="grid-template-columns: 1fr 1fr 1fr;">
+            <div class="admin-form-group">
+              <label class="admin-label" for="stk_e">Stock Entoilée</label>
+              <input class="admin-input" type="number" id="stk_e" name="stk_e" value="0" min="0" />
+            </div>
+            <div class="admin-form-group">
+              <label class="admin-label" for="stk_p">Stock Papier</label>
+              <input class="admin-input" type="number" id="stk_p" name="stk_p" value="0" min="0" />
+            </div>
+            <div class="admin-form-group">
+              <label class="admin-label" for="stk_c">Stock Cadre</label>
+              <input class="admin-input" type="number" id="stk_c" name="stk_c" value="0" min="0" />
+            </div>
           </div>
 
           <div class="admin-form-group" style="display: flex; align-items: center; gap: 0.75rem;">
@@ -146,12 +204,142 @@ if (Astro.request.method === 'POST') {
           </div>
         </div>
 
-        <div style="margin-top: 1rem;">
-          <button type="submit" class="admin-btn admin-btn-primary" style="width: 100%; text-align: center; padding: 0.875rem; font-size: 0.72rem;">
-            Créer le produit
-          </button>
+        <!-- Cinéma (optionnel) -->
+        <div class="admin-card">
+          <h2 style="font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(245,240,232,0.5); margin-bottom: 1.5rem;">
+            Cinéma (optionnel)
+          </h2>
+
+          <div class="admin-grid-2">
+            <div class="admin-form-group">
+              <label class="admin-label" for="realisateur">Réalisateur</label>
+              <input class="admin-input" type="text" id="realisateur" name="realisateur" placeholder="Jean Renoir" />
+            </div>
+            <div class="admin-form-group">
+              <label class="admin-label" for="scenariste">Scénariste</label>
+              <input class="admin-input" type="text" id="scenariste" name="scenariste" />
+            </div>
+          </div>
+
+          <div class="admin-grid-2">
+            <div class="admin-form-group">
+              <label class="admin-label" for="musique">Musique</label>
+              <input class="admin-input" type="text" id="musique" name="musique" />
+            </div>
+            <div class="admin-form-group">
+              <label class="admin-label" for="studio">Studio</label>
+              <input class="admin-input" type="text" id="studio" name="studio" />
+            </div>
+          </div>
+
+          <div class="admin-form-group">
+            <label class="admin-label" for="acteurs">Acteurs</label>
+            <input class="admin-input" type="text" id="acteurs" name="acteurs" placeholder="Jean Gabin, Michèle Morgan..." />
+          </div>
         </div>
+
+        <!-- Prix & Photos -->
+        <div class="admin-card">
+          <h2 style="font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(245,240,232,0.5); margin-bottom: 1.5rem;">
+            Prix & Photos
+          </h2>
+
+          <div class="admin-form-group">
+            <label class="admin-label" for="prix">Prix (€)</label>
+            <input class="admin-input" type="number" id="prix" name="prix" placeholder="2400" min="0" />
+            <p style="font-size: 0.75rem; color: rgba(245,240,232,0.3); margin-top: 0.3rem;">Laissez vide pour "Sur devis"</p>
+          </div>
+
+          <div class="admin-form-group">
+            <label class="admin-label">Photos</label>
+            <input type="hidden" name="photos" id="photos-val" value="" />
+            <div class="img-drop-zone" id="photos-drop">
+              <div class="img-drop-hint" id="photos-hint">
+                <strong>Glisser-déposer les photos ici</strong>
+                <span>ou cliquer pour sélectionner — plusieurs fichiers acceptés</span>
+              </div>
+              <div class="img-preview-list" id="photos-list"></div>
+              <span class="img-uploading" id="photos-status"></span>
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="admin-btn admin-btn-primary" style="width: 100%; text-align: center; padding: 0.875rem; font-size: 0.72rem;">
+          Créer le produit
+        </button>
+
       </div>
     </div>
   </form>
 </AdminLayout>
+
+<script>
+(function () {
+  const zone    = document.getElementById('photos-drop')!;
+  const hidden  = document.getElementById('photos-val') as HTMLInputElement;
+  const list    = document.getElementById('photos-list')!;
+  const hint    = document.getElementById('photos-hint')!;
+  const status  = document.getElementById('photos-status')!;
+  const fileIn  = document.createElement('input');
+  fileIn.type     = 'file';
+  fileIn.accept   = 'image/*';
+  fileIn.multiple = true;
+  fileIn.style.cssText = 'display:none';
+  document.body.appendChild(fileIn);
+
+  let urls: string[] = [];
+
+  function render() {
+    list.innerHTML = '';
+    hint.style.display = urls.length ? 'none' : '';
+    urls.forEach((url, i) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'img-thumb';
+      const img = document.createElement('img');
+      img.src = url;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'img-thumb-remove';
+      btn.textContent = '×';
+      btn.dataset.i = String(i);
+      wrap.appendChild(img);
+      wrap.appendChild(btn);
+      list.appendChild(wrap);
+    });
+    hidden.value = urls.join('\n');
+  }
+
+  list.addEventListener('click', e => {
+    const btn = (e.target as HTMLElement).closest('.img-thumb-remove') as HTMLElement | null;
+    if (btn) { urls.splice(parseInt(btn.dataset.i!), 1); render(); }
+  });
+
+  async function upload(file: File) {
+    status.textContent = `Upload ${file.name}…`;
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      const res  = await fetch('/api/upload', { method: 'POST', body: fd });
+      const json = await res.json();
+      if (json.url) { urls.push(json.url); render(); status.textContent = ''; }
+      else           { status.textContent = 'Erreur : ' + (json.error ?? 'inconnue'); }
+    } catch { status.textContent = 'Erreur réseau.'; }
+  }
+
+  async function uploadAll(files: FileList) {
+    for (const f of Array.from(files)) await upload(f);
+  }
+
+  zone.addEventListener('click',     () => fileIn.click());
+  zone.addEventListener('dragover',  e  => { e.preventDefault(); zone.classList.add('dragging'); });
+  zone.addEventListener('dragleave', ()  => zone.classList.remove('dragging'));
+  zone.addEventListener('drop',      e  => {
+    e.preventDefault();
+    zone.classList.remove('dragging');
+    if (e.dataTransfer?.files.length) uploadAll(e.dataTransfer.files);
+  });
+  fileIn.addEventListener('change', () => {
+    if (fileIn.files?.length) { uploadAll(fileIn.files); fileIn.value = ''; }
+  });
+})();
+</script>

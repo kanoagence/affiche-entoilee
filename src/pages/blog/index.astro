@@ -1,7 +1,6 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import BlogCard from '../../components/BlogCard.astro';
-import { getArticles } from '../../lib/data';
+import { getArticles, formatDate } from '../../lib/data';
 
 const articles = await getArticles(true);
 ---
@@ -35,13 +34,27 @@ const articles = await getArticles(true);
     ) : (
       <div class="blog-grid">
         {articles.map((article) => (
-          <BlogCard
-            slug={article.slug}
-            titre={article.titre}
-            resume={article.resume}
-            date={article.date}
-            image={article.image}
-          />
+          <a
+            href={`/blog/${article.id}`}
+            style="text-decoration: none; color: inherit; display: block;"
+          >
+            <article style="background: var(--ivory); border: 1px solid rgba(139,111,71,0.15); padding: 2rem; height: 100%; transition: box-shadow 0.2s; cursor: pointer;">
+              <p style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--sepia); opacity: 0.6; margin-bottom: 1rem;">
+                {formatDate(article.created_at)}
+              </p>
+              <h2 style="font-family: 'Playfair Display', serif; font-size: 1.2rem; line-height: 1.3; color: var(--dark); margin-bottom: 0.75rem;">
+                {article.titre}
+              </h2>
+              {article.resume && (
+                <p style="font-size: 0.95rem; color: var(--sepia); line-height: 1.6; font-weight: 300;">
+                  {article.resume}
+                </p>
+              )}
+              <p style="margin-top: 1.25rem; font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--rust);">
+                Lire →
+              </p>
+            </article>
+          </a>
         ))}
       </div>
     )}

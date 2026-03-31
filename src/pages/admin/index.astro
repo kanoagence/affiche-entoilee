@@ -1,8 +1,8 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
-import { getProduits, getArticles } from '../../lib/data';
+import { getProduitsAdmin, getArticles } from '../../lib/data';
 
-const produits = await getProduits();
+const produits = await getProduitsAdmin();
 const articles = await getArticles(false); // all articles including drafts
 
 const produitsDisponibles = produits.filter((p) => p.disponible).length;

@@ -1,0 +1,305 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { getSeoPageAdmin, updateSeoPage, deleteSeoPage, getProduitsAdmin } from '../../../lib/data';
+
+const { id } = Astro.params;
+if (!id) return Astro.redirect('/admin/seo');
+
+const [page, produits] = await Promise.all([
+  getSeoPageAdmin(id),
+  getProduitsAdmin(),
+]);
+if (!page) return Astro.redirect('/admin/seo');
+
+let error = '';
+
+if (Astro.request.method === 'POST') {
+  const data = await Astro.request.formData();
+  const action = data.get('_action') as string;
+
+  if (action === 'delete') {
+    await deleteSeoPage(id);
+    return Astro.redirect('/admin/seo?success=deleted');
+  }
+
+  const slug = (data.get('slug') as string)?.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+  const title_seo = (data.get('title_seo') as string)?.trim();
+  const h1 = (data.get('h1') as string)?.trim();
+
+  if (!slug || !title_seo || !h1) {
+    error = 'Slug, titre SEO et H1 sont obligatoires.';
+  } else {
+    const produit_ids = (data.getAll('produit_ids') as string[]).filter(Boolean).slice(0, 3);
+    const ok = await updateSeoPage(id, {
+      slug,
+      title_seo,
+      h1,
+      meta_description: (data.get('meta_description') as string)?.trim() || null,
+      texte_seo:        (data.get('texte_seo') as string)?.trim() || null,
+      image:            (data.get('image') as string)?.trim() || null,
+      mot_cle:          (data.get('mot_cle') as string)?.trim() || null,
+      produit_ids,
+      publie:           data.get('publie') === 'on',
+    });
+    if (ok) return Astro.redirect('/admin/seo?success=updated');
+    error = 'Erreur lors de la mise à jour.';
+  }
+}
+---
+
+<AdminLayout title={`Modifier — ${page.slug}`} activeSection="seo">
+
+  <div style="display:flex; align-items:center; gap:1rem; margin-bottom:2rem; padding-bottom:1rem; border-bottom:1px solid rgba(245,240,232,0.08);">
+    <a href="/admin/seo" class="admin-btn admin-btn-secondary" style="font-size:0.6rem;">← Retour</a>
+    <h1 class="admin-page-title" style="margin:0; border:none; padding:0;">/{page.slug}</h1>
+    <a href={`/${page.slug}`} target="_blank" class="admin-btn admin-btn-secondary" style="margin-left:auto; font-size:0.6rem; opacity:0.6;">
+      ↗ Voir la page
+    </a>
+  </div>
+
+  {error && <div class="alert alert-error" style="margin-bottom:1.5rem;">{error}</div>}
+
+  <form method="POST">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:2rem;">
+
+      <!-- Colonne gauche -->
+      <div style="display:flex; flex-direction:column; gap:1.5rem;">
+
+        <div class="admin-card" style="padding:1.5rem;">
+          <h2 class="admin-section-title">URL & Référencement</h2>
+          <div class="admin-field">
+            <label class="admin-label">
+              Slug
+              <span class="admin-tip">
+                <span class="admin-tip-icon">i</span>
+                <span class="admin-tip-box">
+                  <strong>L'URL de la page</strong>
+                  Choisissez un slug court (3 à 5 mots) centré sur le mot-clé principal. Google lit l'URL comme signal de pertinence : « affiche-brigitte-bardot » est efficace, « page-123 » ne sert à rien. Tirets uniquement entre les mots — pas d'espaces, pas d'accents. Un bon slug ne change jamais après publication (les liens entrants seraient perdus).
+                </span>
+              </span>
+            </label>
+            <div style="display:flex; align-items:center; border:1px solid rgba(245,240,232,0.1);">
+              <span style="padding:0.6rem 0.75rem; background:rgba(245,240,232,0.04); font-family:'DM Mono',monospace; font-size:0.65rem; color:rgba(245,240,232,0.4); white-space:nowrap;">affiche-entoilee.fr/</span>
+              <input type="text" name="slug" required value={page.slug}
+                style="flex:1; background:transparent; border:none; padding:0.6rem 0.75rem; color:var(--cream); font-family:'DM Mono',monospace; font-size:0.75rem; outline:none;" />
+            </div>
+          </div>
+          <div class="admin-field">
+            <label class="admin-label">
+              Titre SEO
+              <span class="admin-tip">
+                <span class="admin-tip-icon">i</span>
+                <span class="admin-tip-box">
+                  <strong>Balise &lt;title&gt; — priorité absolue</strong>
+                  C'est le titre bleu affiché dans les résultats Google : l'élément SEO le plus important de la page. Placez le mot-clé principal en tout début. Chaque page doit avoir un titre unique sur le site. Au-delà de 60-70 caractères, Google tronque avec « … ». Exemple réussi : « Affiche Brigitte Bardot originale — L'Affiche Entoilée ».
+                </span>
+              </span>
+            </label>
+            <input class="admin-input" type="text" name="title_seo" required value={page.title_seo} maxlength="70" />
+          </div>
+          <div class="admin-field">
+            <label class="admin-label">
+              Meta description
+              <span class="admin-tip">
+                <span class="admin-tip-icon">i</span>
+                <span class="admin-tip-box">
+                  <strong>L'accroche sous le titre Google</strong>
+                  Ce texte apparaît sous le titre bleu dans les résultats de recherche. Il n'influence pas directement le classement, mais il détermine votre taux de clic (CTR) : une bonne description convertit plus d'impressions en visites. Rédigez-la comme une invitation — incluez le mot-clé naturellement, donnez envie de cliquer. Au-delà de 155-160 caractères, Google coupe le texte.
+                </span>
+              </span>
+            </label>
+            <textarea class="admin-input" name="meta_description" rows="3" maxlength="160">{page.meta_description ?? ''}</textarea>
+          </div>
+          <div class="admin-field">
+            <label class="admin-label">
+              Mot-clé / thème
+              <span class="admin-tip">
+                <span class="admin-tip-icon">i</span>
+                <span class="admin-tip-box">
+                  <strong>Usage interne — tableau de bord</strong>
+                  Ce champ n'est pas affiché sur la page publique. Il sert à identifier rapidement la thématique de chaque page dans votre tableau de bord et à analyser les performances par sujet. Notez le mot-clé exact que vous ciblez, tel qu'un internaute le taperait dans Google (ex : « affiche brigitte bardot »).
+                </span>
+              </span>
+            </label>
+            <input class="admin-input" type="text" name="mot_cle" value={page.mot_cle ?? ''} />
+          </div>
+        </div>
+
+        <div class="admin-card" style="padding:1.5rem;">
+          <h2 class="admin-section-title">Contenu de la page</h2>
+          <div class="admin-field">
+            <label class="admin-label">
+              H1 — titre principal
+              <span class="admin-tip">
+                <span class="admin-tip-icon">i</span>
+                <span class="admin-tip-box">
+                  <strong>Le titre visible sur la page</strong>
+                  Il ne doit y en avoir qu'un seul par page — Google lui accorde un poids fort. Incluez le mot-clé principal, mais formulez-le différemment du titre SEO : plus littéraire, plus accrocheur. Pensez au visiteur autant qu'au moteur. Exemple : « Affiches Brigitte Bardot — Collection originale » plutôt que la répétition exacte du &lt;title&gt;.
+                </span>
+              </span>
+            </label>
+            <input class="admin-input" type="text" name="h1" required value={page.h1} />
+          </div>
+          <div class="admin-field">
+            <label class="admin-label">
+              Texte SEO
+              <span class="admin-tip">
+                <span class="admin-tip-icon">i</span>
+                <span class="admin-tip-box">
+                  <strong>Le corps de texte que Google lit</strong>
+                  C'est le contenu que Google analyse pour comprendre le sujet et décider du classement. Visez 200 à 500 mots minimum. Intégrez naturellement le mot-clé et son champ sémantique : synonymes, termes associés, contexte historique ou artistique. Des paragraphes aérés améliorent la lisibilité et le temps passé sur la page — deux signaux positifs pour Google. Évitez la répétition mécanique du mot-clé (risque de pénalité pour sur-optimisation).
+                </span>
+              </span>
+            </label>
+            <textarea class="admin-input" name="texte_seo" rows="8">{page.texte_seo ?? ''}</textarea>
+          </div>
+          <div class="admin-field">
+            <label class="admin-label">
+              Image
+              <span class="admin-tip">
+                <span class="admin-tip-icon">i</span>
+                <span class="admin-tip-box">
+                  <strong>Visuel mis en avant en haut de page</strong>
+                  L'image n'influence pas directement le classement textuel, mais elle améliore fortement l'engagement des visiteurs — temps de session, taux de rebond — des signaux que Google prend en compte indirectement. L'attribut alt est généré automatiquement depuis le H1. Format recommandé : 1200 × 600 px minimum.
+                </span>
+              </span>
+            </label>
+            <input type="hidden" name="image" id="seo-image-val" value={page.image ?? ''} />
+            <div class="img-drop-zone" id="seo-image-drop">
+              {page.image ? (
+                <>
+                  <img src={page.image} alt="aperçu" class="img-preview-single" />
+                  <span class="img-replace-hint">Cliquer ou déposer pour remplacer</span>
+                </>
+              ) : (
+                <div class="img-drop-hint">
+                  <strong>Glisser-déposer une image ici</strong>
+                  <span>ou cliquer pour parcourir — JPG, PNG, WebP</span>
+                </div>
+              )}
+              <span class="img-uploading" id="seo-image-status"></span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Colonne droite -->
+      <div style="display:flex; flex-direction:column; gap:1.5rem;">
+
+        <div class="admin-card" style="padding:1.5rem;">
+          <h2 class="admin-section-title">Affiches mises en avant <span style="font-size:0.7rem; opacity:0.5; text-transform:none; letter-spacing:0;">(max. 3)</span></h2>
+          <input
+            type="text"
+            id="produits-search"
+            placeholder="Rechercher une affiche…"
+            autocomplete="off"
+            style="width:100%; background:rgba(26,20,16,0.5); border:1px solid rgba(245,240,232,0.12); color:var(--cream); padding:0.5rem 0.75rem; font-family:'DM Mono',monospace; font-size:0.7rem; outline:none; margin-bottom:0.75rem; border-radius:0;"
+          />
+          <div id="produits-list" style="max-height:320px; overflow-y:auto;">
+            {produits.map(p => (
+              <label class="produit-row" data-titre={p.titre.toLowerCase()} style="display:flex; align-items:center; gap:0.75rem; padding:0.6rem 0; border-bottom:1px solid rgba(245,240,232,0.05); cursor:pointer;">
+                <input type="checkbox" name="produit_ids" value={p.id}
+                  checked={page.produit_ids?.includes(p.id)}
+                  style="accent-color:var(--rust); width:1rem; height:1rem; flex-shrink:0;" />
+                <span style="flex:1; font-size:0.8rem; color:var(--cream);">{p.titre}</span>
+                {p.annee && <span style="font-family:'DM Mono',monospace; font-size:0.55rem; opacity:0.4;">{p.annee}</span>}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div class="admin-card" style="padding:1.5rem;">
+          <h2 class="admin-section-title">Publication</h2>
+          <label style="display:flex; align-items:center; gap:0.75rem; cursor:pointer;">
+            <input type="checkbox" name="publie" checked={page.publie}
+              style="accent-color:var(--rust); width:1.1rem; height:1.1rem;" />
+            <span style="font-size:0.85rem;">Publié (indexable par Google)</span>
+          </label>
+        </div>
+
+        <div style="display:flex; gap:0.75rem; justify-content:flex-end; align-items:center;">
+          <!-- Supprimer -->
+          <form method="POST" style="margin:0;" onsubmit="return confirm('Supprimer cette page SEO ?')">
+            <input type="hidden" name="_action" value="delete" />
+            <button type="submit" class="admin-btn" style="background:rgba(196,98,45,0.15); color:var(--rust); border:1px solid rgba(196,98,45,0.3);">
+              Supprimer
+            </button>
+          </form>
+          <button type="submit" class="admin-btn admin-btn-primary">Enregistrer</button>
+        </div>
+
+      </div>
+    </div>
+  </form>
+
+</AdminLayout>
+
+<script>
+// — Recherche affiches —
+const search = document.getElementById('produits-search') as HTMLInputElement;
+search?.addEventListener('input', () => {
+  const q = search.value.toLowerCase().trim();
+  document.querySelectorAll<HTMLElement>('.produit-row').forEach(row => {
+    row.style.display = (!q || (row.dataset.titre ?? '').includes(q)) ? '' : 'none';
+  });
+});
+
+// — Dropzone image unique (SEO) —
+(function () {
+  const zone   = document.getElementById('seo-image-drop')!;
+  const hidden = document.getElementById('seo-image-val') as HTMLInputElement;
+  const status = document.getElementById('seo-image-status')!;
+  const fileIn = document.createElement('input');
+  fileIn.type   = 'file';
+  fileIn.accept = 'image/*';
+  fileIn.style.cssText = 'display:none';
+  document.body.appendChild(fileIn);
+
+  function showPreview(url: string) {
+    zone.innerHTML = '';
+    const img = document.createElement('img');
+    img.src = url;
+    img.className = 'img-preview-single';
+    const hint = document.createElement('span');
+    hint.className = 'img-replace-hint';
+    hint.textContent = 'Cliquer ou déposer pour remplacer';
+    const st = document.createElement('span');
+    st.className = 'img-uploading';
+    st.id = 'seo-image-status';
+    zone.appendChild(img);
+    zone.appendChild(hint);
+    zone.appendChild(st);
+  }
+
+  async function upload(file: File) {
+    const st = document.getElementById('seo-image-status')!;
+    st.textContent = 'Upload en cours…';
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      const res  = await fetch('/api/upload', { method: 'POST', body: fd });
+      const json = await res.json();
+      if (json.url) {
+        hidden.value = json.url;
+        showPreview(json.url);
+      } else {
+        st.textContent = 'Erreur : ' + (json.error ?? 'inconnue');
+      }
+    } catch {
+      document.getElementById('seo-image-status')!.textContent = 'Erreur réseau.';
+    }
+  }
+
+  zone.addEventListener('click',     () => fileIn.click());
+  zone.addEventListener('dragover',  e  => { e.preventDefault(); zone.classList.add('dragging'); });
+  zone.addEventListener('dragleave', ()  => zone.classList.remove('dragging'));
+  zone.addEventListener('drop',      e  => {
+    e.preventDefault();
+    zone.classList.remove('dragging');
+    const f = e.dataTransfer?.files[0];
+    if (f) upload(f);
+  });
+  fileIn.addEventListener('change', () => { if (fileIn.files?.[0]) upload(fileIn.files[0]); });
+})();
+</script>

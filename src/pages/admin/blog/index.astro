@@ -1,9 +1,8 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
-import { getArticles, formatDate } from '../../../lib/data';
+import { getArticlesAdmin, formatDate } from '../../../lib/data';
 
-// Get all articles including drafts
-const articles = await getArticles(false);
+const articles = await getArticlesAdmin();
 
 const successMsg = Astro.url.searchParams.get('success');
 ---
@@ -41,12 +40,14 @@ const successMsg = Astro.url.searchParams.get('success');
             <tr>
               <td>
                 <strong style="color: var(--cream); display: block;">{a.titre}</strong>
-                <span style="font-size: 0.8rem; color: rgba(245,240,232,0.4); display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; max-width: 400px;">
-                  {a.resume}
-                </span>
+                {a.resume && (
+                  <span style="font-size: 0.8rem; color: rgba(245,240,232,0.4); display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; max-width: 400px;">
+                    {a.resume}
+                  </span>
+                )}
               </td>
               <td style="font-family: 'DM Mono', monospace; font-size: 0.75rem; opacity: 0.6; white-space: nowrap;">
-                {new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }).format(a.date)}
+                {formatDate(a.created_at)}
               </td>
               <td>
                 {a.publie ? (
@@ -61,11 +62,11 @@ const successMsg = Astro.url.searchParams.get('success');
               </td>
               <td>
                 <div style="display: flex; gap: 0.5rem;">
-                  <a href={`/admin/blog/${a.slug}`} class="admin-btn admin-btn-secondary" style="padding: 0.25rem 0.6rem; font-size: 0.58rem;">
+                  <a href={`/admin/blog/${a.id}`} class="admin-btn admin-btn-secondary" style="padding: 0.25rem 0.6rem; font-size: 0.58rem;">
                     Modifier
                   </a>
                   {a.publie && (
-                    <a href={`/blog/${a.slug}`} target="_blank" class="admin-btn admin-btn-secondary" style="padding: 0.25rem 0.6rem; font-size: 0.58rem; opacity: 0.5;">
+                    <a href={`/blog/${a.id}`} target="_blank" class="admin-btn admin-btn-secondary" style="padding: 0.25rem 0.6rem; font-size: 0.58rem; opacity: 0.5;">
                       ↗
                     </a>
                   )}

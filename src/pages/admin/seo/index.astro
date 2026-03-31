@@ -1,0 +1,102 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { getSeoPages, getSeoStats } from '../../../lib/data';
+
+const pages  = await getSeoPages();
+const stats  = await getSeoStats();
+const statsMap = Object.fromEntries(stats.map(s => [s.slug, s]));
+
+// Pages tendance : trend > 0.25 et au moins 3 visites sur 7j
+const trending = stats.filter(s => s.trend > 0.25 && s.views_7d >= 3)
+  .sort((a, b) => b.trend - a.trend);
+---
+
+<AdminLayout title="SEO Landing Pages — Admin" activeSection="seo">
+
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem; padding-bottom:1rem; border-bottom:1px solid rgba(245,240,232,0.08);">
+    <h1 class="admin-page-title" style="margin:0; border:none; padding:0;">
+      SEO Landing Pages <span style="font-size:1rem; color:rgba(245,240,232,0.4);">({pages.length})</span>
+    </h1>
+    <a href="/admin/seo/nouvelle" class="admin-btn admin-btn-primary">+ Nouvelle page</a>
+  </div>
+
+  <!-- Tendances -->
+  {trending.length > 0 && (
+    <div class="admin-card" style="margin-bottom:2rem; padding:1.5rem; border-left:3px solid var(--gold-light);">
+      <p style="font-family:'DM Mono',monospace; font-size:0.55rem; letter-spacing:0.3em; text-transform:uppercase; color:var(--gold-light); margin-bottom:1rem;">
+        ↑ Sujets en tendance
+      </p>
+      <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+        {trending.map(s => (
+          <span style="font-family:'DM Mono',monospace; font-size:0.6rem; padding:0.3rem 0.75rem; background:rgba(184,150,46,0.12); color:var(--gold-light); border:1px solid rgba(184,150,46,0.25);">
+            {s.mot_cle ?? s.slug} — {Math.round(s.trend * 100)}%
+          </span>
+        ))}
+      </div>
+    </div>
+  )}
+
+  <!-- Tableau -->
+  {pages.length === 0 ? (
+    <div style="text-align:center; padding:4rem; color:rgba(245,240,232,0.4);">
+      <p style="margin-bottom:1rem;">Aucune page SEO créée.</p>
+      <a href="/admin/seo/nouvelle" class="admin-btn admin-btn-primary">Créer la première</a>
+    </div>
+  ) : (
+    <div class="admin-card" style="padding:0;">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Slug</th>
+            <th>Mot-clé</th>
+            <th>Statut</th>
+            <th style="text-align:right;">7j</th>
+            <th style="text-align:right;">30j</th>
+            <th style="text-align:right;">90j</th>
+            <th style="text-align:right;">365j</th>
+            <th style="text-align:right;">Clics</th>
+            <th style="text-align:right;">CTR</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {pages.map(p => {
+            const s = statsMap[p.slug];
+            return (
+              <tr>
+                <td style="font-family:'DM Mono',monospace; font-size:0.65rem;">
+                  <a href={`/${p.slug}`} target="_blank" style="color:var(--gold-light); text-decoration:none;">
+                    /{p.slug} ↗
+                  </a>
+                </td>
+                <td style="opacity:0.7; font-size:0.8rem;">{p.mot_cle ?? '—'}</td>
+                <td>
+                  <span class="admin-badge" style={p.publie
+                    ? 'background:rgba(74,222,128,0.12); color:#4ade80;'
+                    : 'background:rgba(245,240,232,0.06); color:rgba(245,240,232,0.4);'
+                  }>
+                    {p.publie ? 'Publié' : 'Brouillon'}
+                  </span>
+                </td>
+                <td style="text-align:right; font-family:'DM Mono',monospace; font-size:0.7rem;">{s?.views_7d ?? 0}</td>
+                <td style="text-align:right; font-family:'DM Mono',monospace; font-size:0.7rem;">{s?.views_30d ?? 0}</td>
+                <td style="text-align:right; font-family:'DM Mono',monospace; font-size:0.7rem;">{s?.views_90d ?? 0}</td>
+                <td style="text-align:right; font-family:'DM Mono',monospace; font-size:0.7rem;">{s?.views_365d ?? 0}</td>
+                <td style="text-align:right; font-family:'DM Mono',monospace; font-size:0.7rem;">{s?.clicks ?? 0}</td>
+                <td style="text-align:right; font-family:'DM Mono',monospace; font-size:0.7rem;">
+                  {s?.ctr ?? 0}%
+                </td>
+                <td>
+                  <a href={`/admin/seo/${p.id}`} class="admin-btn admin-btn-secondary" style="padding:0.25rem 0.6rem; font-size:0.58rem;">
+                    Modifier
+                  </a>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  )}
+
+</AdminLayout>

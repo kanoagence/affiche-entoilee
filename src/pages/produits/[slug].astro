@@ -1,24 +1,26 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { getProduits, getProduit, formatPrix, etatLabel } from '../../lib/data';
+import { getProduit, etatLabel } from '../../lib/data';
 
-const { slug } = Astro.params;
+const { slug: id } = Astro.params;
 
-if (!slug) {
+if (!id) {
   return Astro.redirect('/produits');
 }
 
-const produit = await getProduit(slug);
+const produit = await getProduit(id);
 
 if (!produit) {
   return new Response(null, { status: 404 });
 }
 
-const badgeClass = {
-  entoilee: 'badge-entoilee',
-  restauree: 'badge-restauree',
-  'a-restaurer': 'badge-a-restaurer',
-}[produit.etat];
+const badgeClass = produit.etat
+  ? ({
+      entoilee: 'badge-entoilee',
+      restauree: 'badge-restauree',
+      'a-restaurer': 'badge-a-restaurer',
+    }[produit.etat] ?? '')
+  : '';
 
 const defaultGradients: Record<string, string> = {
   entoilee: 'linear-gradient(160deg, #C4622D 0%, #8B6F47 50%, #1A1410 100%)',
@@ -26,16 +28,12 @@ const defaultGradients: Record<string, string> = {
   'a-restaurer': 'linear-gradient(160deg, #2D2520 0%, #8B6F47 60%, #C4622D 100%)',
 };
 
-const bgGradient = produit.images[0] ? undefined : defaultGradients[produit.etat];
-
-// Subject for contact form
-const contactSubject = `acquisition`;
-const contactMessage = `Bonjour,\n\nJe suis intéressé(e) par l'affiche "${produit.titre}" (${produit.annee}).`;
+const bgGradient = defaultGradients[produit.etat ?? ''] ?? defaultGradients['entoilee'];
 ---
 
 <BaseLayout
   title={`${produit.titre} — Hervé Affiches`}
-  description={produit.description}
+  description={produit.description ?? undefined}
 >
   <!-- Back link -->
   <div style="padding: 7rem 3rem 0; max-width: 1200px; margin: 0 auto;">
@@ -50,28 +48,32 @@ const contactMessage = `Bonjour,\n\nJe suis intéressé(e) par l'affiche "${prod
   <!-- Product detail -->
   <section style="padding: 2rem 3rem 6rem; max-width: 1200px; margin: 0 auto;">
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5rem; align-items: start;">
-      <!-- Image -->
+
+      <!-- Visuel placeholder -->
       <div style="position: sticky; top: 6rem;">
         <div
           style="width: 100%; aspect-ratio: 2/3; position: relative; overflow: hidden; border-radius: 2px; box-shadow: 0 20px 60px rgba(26,20,16,0.15);"
         >
-          {produit.images[0] ? (
+          <!-- Gradient toujours présent en fond -->
+          <div style={`width: 100%; height: 100%; background: ${bgGradient};`}></div>
+          <!-- Photo par-dessus si elle existe -->
+          {produit.photos?.filter(Boolean)[0] && (
             <img
-              src={produit.images[0]}
+              src={produit.photos.filter(Boolean)[0]}
               alt={produit.titre}
-              style="width: 100%; height: 100%; object-fit: cover;"
+              style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;"
             />
-          ) : (
-            <div style={`width: 100%; height: 100%; background: ${bgGradient};`}></div>
           )}
-          <span class={`product-badge ${badgeClass}`} style="font-size: 0.65rem;">
-            {etatLabel(produit.etat)}
-          </span>
+          {produit.etat && (
+            <span class={`product-badge ${badgeClass}`} style="font-size: 0.65rem;">
+              {etatLabel(produit.etat)}
+            </span>
+          )}
           {!produit.disponible && (
             <div
               style="position: absolute; inset: 0; background: rgba(26,20,16,0.6); display: flex; align-items: center; justify-content: center;"
             >
-              <span style="font-family: 'Playfair Display', serif; font-size: 1.5rem; font-style: italic; color: rgba(245,240,232,0.7);">Vendu</span>
+              <span style="font-family: 'Playfair Display', serif; font-size: 1.5rem; font-style: italic; color: rgba(245,240,232,0.7);">Non disponible</span>
             </div>
           )}
         </div>
@@ -79,64 +81,131 @@ const contactMessage = `Bonjour,\n\nJe suis intéressé(e) par l'affiche "${prod
 
       <!-- Info -->
       <div>
+        {produit.ref && (
+          <p style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--sepia); opacity: 0.6; margin-bottom: 0.5rem;">
+            Réf. {produit.ref}
+          </p>
+        )}
         <p class="section-eyebrow" style="margin-bottom: 0.5rem;">Affiche originale</p>
-        <h1 style="font-size: clamp(1.5rem, 3vw, 2.2rem); line-height: 1.2; margin-bottom: 0.5rem;">
+        <h1 style="font-size: clamp(1.5rem, 3vw, 2.2rem); line-height: 1.2; margin-bottom: 1.5rem;">
           {produit.titre}
         </h1>
 
-        <!-- Price -->
-        <div style="margin: 1.5rem 0; padding: 1.25rem; background: var(--ivory); border-left: 3px solid var(--rust);">
-          <div style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--sepia); margin-bottom: 0.25rem;">Prix</div>
-          <div style="font-size: 1.75rem; color: var(--rust); font-weight: 500;">
-            {formatPrix(produit.prix, produit.surDevis)}
-          </div>
-          {produit.surDevis && (
-            <p style="font-size: 0.85rem; color: var(--sepia); margin-top: 0.25rem;">Contactez-nous pour obtenir un prix</p>
-          )}
-        </div>
-
         <!-- Details table -->
-        <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 2rem;">
-          {produit.artiste && (
-            <div style="display: grid; grid-template-columns: 130px 1fr; gap: 0.5rem; align-items: baseline; padding-bottom: 0.75rem; border-bottom: 1px solid rgba(139,111,71,0.1);">
-              <span style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sepia);">Artiste</span>
-              <span style="font-size: 1rem; color: var(--dark);">{produit.artiste}</span>
+        <div style="display: flex; flex-direction: column; gap: 0; margin-bottom: 2rem;">
+
+          {produit.affichiste && (
+            <div style="display: grid; grid-template-columns: 160px 1fr; gap: 0.5rem; align-items: baseline; padding: 0.75rem 0; border-bottom: 1px solid rgba(139,111,71,0.1);">
+              <span style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sepia);">Affichiste</span>
+              <span style="font-size: 1rem; color: var(--dark);">{produit.affichiste}</span>
             </div>
           )}
-          <div style="display: grid; grid-template-columns: 130px 1fr; gap: 0.5rem; align-items: baseline; padding-bottom: 0.75rem; border-bottom: 1px solid rgba(139,111,71,0.1);">
-            <span style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sepia);">Année</span>
-            <span style="font-size: 1rem; color: var(--dark);">{produit.annee}</span>
-          </div>
-          {produit.dimensions && (
-            <div style="display: grid; grid-template-columns: 130px 1fr; gap: 0.5rem; align-items: baseline; padding-bottom: 0.75rem; border-bottom: 1px solid rgba(139,111,71,0.1);">
-              <span style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sepia);">Dimensions</span>
-              <span style="font-size: 1rem; color: var(--dark);">{produit.dimensions}</span>
+
+          {produit.annee && (
+            <div style="display: grid; grid-template-columns: 160px 1fr; gap: 0.5rem; align-items: baseline; padding: 0.75rem 0; border-bottom: 1px solid rgba(139,111,71,0.1);">
+              <span style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sepia);">Année</span>
+              <span style="font-size: 1rem; color: var(--dark);">{produit.annee}</span>
             </div>
           )}
-          <div style="display: grid; grid-template-columns: 130px 1fr; gap: 0.5rem; align-items: baseline; padding-bottom: 0.75rem; border-bottom: 1px solid rgba(139,111,71,0.1);">
-            <span style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sepia);">État</span>
-            <span class={`product-badge ${badgeClass}`} style="position:static; font-size:0.65rem;">
-              {etatLabel(produit.etat)}
-            </span>
-          </div>
-          {produit.imprimeur && (
-            <div style="display: grid; grid-template-columns: 130px 1fr; gap: 0.5rem; align-items: baseline; padding-bottom: 0.75rem; border-bottom: 1px solid rgba(139,111,71,0.1);">
-              <span style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sepia);">Imprimeur</span>
-              <span style="font-size: 1rem; color: var(--dark);">{produit.imprimeur}</span>
+
+          {produit.format && (
+            <div style="display: grid; grid-template-columns: 160px 1fr; gap: 0.5rem; align-items: baseline; padding: 0.75rem 0; border-bottom: 1px solid rgba(139,111,71,0.1);">
+              <span style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sepia);">Format</span>
+              <span style="font-size: 1rem; color: var(--dark);">{produit.format}</span>
             </div>
           )}
+
+          {produit.categorie && (
+            <div style="display: grid; grid-template-columns: 160px 1fr; gap: 0.5rem; align-items: baseline; padding: 0.75rem 0; border-bottom: 1px solid rgba(139,111,71,0.1);">
+              <span style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sepia);">Catégorie</span>
+              <span style="font-size: 1rem; color: var(--dark);">{produit.categorie}</span>
+            </div>
+          )}
+
+          {produit.theme && (
+            <div style="display: grid; grid-template-columns: 160px 1fr; gap: 0.5rem; align-items: baseline; padding: 0.75rem 0; border-bottom: 1px solid rgba(139,111,71,0.1);">
+              <span style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sepia);">Thème</span>
+              <span style="font-size: 1rem; color: var(--dark);">{produit.theme}</span>
+            </div>
+          )}
+
+          {produit.etat && (
+            <div style="display: grid; grid-template-columns: 160px 1fr; gap: 0.5rem; align-items: baseline; padding: 0.75rem 0; border-bottom: 1px solid rgba(139,111,71,0.1);">
+              <span style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sepia);">État</span>
+              <span class={`product-badge ${badgeClass}`} style="position:static; font-size:0.65rem;">
+                {etatLabel(produit.etat)}
+              </span>
+            </div>
+          )}
+
+          {produit.impression && (
+            <div style="display: grid; grid-template-columns: 160px 1fr; gap: 0.5rem; align-items: baseline; padding: 0.75rem 0; border-bottom: 1px solid rgba(139,111,71,0.1);">
+              <span style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sepia);">Impression</span>
+              <span style="font-size: 1rem; color: var(--dark);">{produit.impression}</span>
+            </div>
+          )}
+
+          {produit.realisateur && (
+            <div style="display: grid; grid-template-columns: 160px 1fr; gap: 0.5rem; align-items: baseline; padding: 0.75rem 0; border-bottom: 1px solid rgba(139,111,71,0.1);">
+              <span style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sepia);">Réalisateur</span>
+              <span style="font-size: 1rem; color: var(--dark);">{produit.realisateur}</span>
+            </div>
+          )}
+
+          {produit.scenariste && (
+            <div style="display: grid; grid-template-columns: 160px 1fr; gap: 0.5rem; align-items: baseline; padding: 0.75rem 0; border-bottom: 1px solid rgba(139,111,71,0.1);">
+              <span style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sepia);">Scénariste</span>
+              <span style="font-size: 1rem; color: var(--dark);">{produit.scenariste}</span>
+            </div>
+          )}
+
+          {produit.musique && (
+            <div style="display: grid; grid-template-columns: 160px 1fr; gap: 0.5rem; align-items: baseline; padding: 0.75rem 0; border-bottom: 1px solid rgba(139,111,71,0.1);">
+              <span style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sepia);">Musique</span>
+              <span style="font-size: 1rem; color: var(--dark);">{produit.musique}</span>
+            </div>
+          )}
+
+          {produit.acteurs && (
+            <div style="display: grid; grid-template-columns: 160px 1fr; gap: 0.5rem; align-items: baseline; padding: 0.75rem 0; border-bottom: 1px solid rgba(139,111,71,0.1);">
+              <span style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sepia);">Acteurs</span>
+              <span style="font-size: 1rem; color: var(--dark);">{produit.acteurs}</span>
+            </div>
+          )}
+
+          {produit.studio && (
+            <div style="display: grid; grid-template-columns: 160px 1fr; gap: 0.5rem; align-items: baseline; padding: 0.75rem 0; border-bottom: 1px solid rgba(139,111,71,0.1);">
+              <span style="font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sepia);">Studio</span>
+              <span style="font-size: 1rem; color: var(--dark);">{produit.studio}</span>
+            </div>
+          )}
+
         </div>
 
         <!-- Description -->
-        <p style="font-size: 1.05rem; color: var(--sepia); line-height: 1.8; font-weight: 300; margin-bottom: 2rem;">
-          {produit.description}
-        </p>
+        {produit.description && (
+          <p style="font-size: 1.05rem; color: var(--sepia); line-height: 1.8; font-weight: 300; margin-bottom: 1.5rem;">
+            {produit.description}
+          </p>
+        )}
+
+        <!-- Histoire affichiste -->
+        {produit.histoire_affichiste && (
+          <div style="margin-bottom: 2rem; padding: 1.25rem; background: var(--ivory); border-left: 3px solid rgba(139,111,71,0.3);">
+            <p style="font-family: 'DM Mono', monospace; font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sepia); margin-bottom: 0.5rem; opacity: 0.7;">
+              À propos de l'affichiste
+            </p>
+            <p style="font-size: 0.95rem; color: var(--sepia); line-height: 1.7; font-weight: 300;">
+              {produit.histoire_affichiste}
+            </p>
+          </div>
+        )}
 
         <!-- CTA -->
         {produit.disponible ? (
           <div style="display: flex; flex-direction: column; gap: 0.75rem;">
             <a
-              href={`/contact?sujet=${contactSubject}&affiche=${encodeURIComponent(produit.titre)}`}
+              href={`/contact?affiche=${encodeURIComponent(produit.titre)}`}
               class="btn-primary"
               style="text-align: center;"
             >

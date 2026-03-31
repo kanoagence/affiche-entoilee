@@ -1,0 +1,206 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getSeoPage, getProduit } from '../lib/data';
+
+const { slug } = Astro.params;
+if (!slug) return Astro.redirect('/404');
+
+const page = await getSeoPage(slug);
+if (!page) return new Response(null, { status: 404 });
+
+// Récupère les produits mis en avant (max 3)
+const produits = (
+  await Promise.all((page.produit_ids ?? []).slice(0, 3).map(id => getProduit(id)))
+).filter(Boolean);
+---
+
+<BaseLayout
+  title={page.title_seo}
+  description={page.meta_description ?? ''}
+>
+
+<article class="seo-page">
+
+  <!-- Hero -->
+  <header class="seo-hero">
+    {page.image && (
+      <div class="seo-hero-img">
+        <img src={page.image} alt={page.h1} loading="eager" />
+      </div>
+    )}
+    <div class="seo-hero-text">
+      <span class="eyebrow">Collection</span>
+      <h1>{page.h1}</h1>
+    </div>
+  </header>
+
+  <!-- Texte SEO -->
+  {page.texte_seo && (
+    <section class="seo-body">
+      <div class="seo-prose" set:html={page.texte_seo.replace(/\n/g, '<br>')} />
+    </section>
+  )}
+
+  <!-- Affiches associées -->
+  {produits.length > 0 && (
+    <section class="seo-products">
+      <div class="seo-products-header">
+        <span class="eyebrow">Affiches associées</span>
+        <h2>Sélection de la collection</h2>
+      </div>
+      <div class="seo-products-grid">
+        {produits.map((p) => (
+          <a
+            href={`/produits/${p!.id}`}
+            class="seo-card"
+            data-product-id={p!.id}
+          >
+            <div class="seo-card-visual">
+              {p!.photos?.[0]
+                ? <img src={p!.photos[0]} alt={p!.titre} loading="lazy" />
+                : <div class="seo-card-placeholder"><span>{p!.titre}</span></div>
+              }
+            </div>
+            <div class="seo-card-caption">
+              <h3>{p!.titre}</h3>
+              {p!.affichiste && <p class="seo-card-artist">{p!.affichiste}</p>}
+              {p!.annee && <p class="seo-card-year">{p!.annee}</p>}
+              <span class="seo-card-cta">Voir la fiche →</span>
+            </div>
+          </a>
+        ))}
+      </div>
+    </section>
+  )}
+
+  <!-- CTA bas de page -->
+  <section class="seo-cta">
+    <p>Vous recherchez une affiche spécifique ? Consultez toute la collection ou contactez Hervé directement.</p>
+    <div class="seo-cta-btns">
+      <a href="/produits" class="btn-primary">Voir la collection</a>
+      <a href="/contact" class="btn-secondary">Contacter Hervé</a>
+    </div>
+  </section>
+
+</article>
+
+</BaseLayout>
+
+<script define:vars={{ pageSlug: slug, produitsIds: page.produit_ids }}>
+// ── Tracking ─────────────────────────────────────────────
+fetch('/api/seo-track', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ page_slug: pageSlug, event_type: 'view' }),
+});
+
+document.querySelectorAll('[data-product-id]').forEach(el => {
+  el.addEventListener('click', () => {
+    fetch('/api/seo-track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        page_slug:  pageSlug,
+        event_type: 'product_click',
+        product_id: el.dataset.productId,
+      }),
+    });
+  });
+});
+</script>
+
+<style>
+.seo-page { max-width: 1200px; margin: 0 auto; }
+
+/* Hero */
+.seo-hero {
+  padding: 8rem 5rem 4rem;
+  background: var(--cream);
+  border-bottom: 1px solid rgba(139,111,71,0.12);
+}
+.seo-hero-img { margin-bottom: 2rem; }
+.seo-hero-img img { max-height: 320px; object-fit: cover; width: 100%; }
+.eyebrow {
+  font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.4em;
+  text-transform: uppercase; color: var(--rust);
+  display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;
+}
+.eyebrow::before { content: ''; width: 1.5rem; height: 1px; background: var(--rust); }
+.seo-hero h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2rem, 4vw, 3.2rem); font-weight: 400;
+  color: var(--dark); line-height: 1.15;
+}
+
+/* Texte SEO */
+.seo-body {
+  padding: 4rem 5rem;
+  background: var(--ivory);
+  border-bottom: 1px solid rgba(139,111,71,0.1);
+}
+.seo-prose {
+  max-width: 720px;
+  font-size: 1rem; line-height: 1.9; color: var(--dark);
+  font-weight: 300;
+}
+
+/* Produits */
+.seo-products {
+  padding: 4rem 5rem;
+  background: var(--cream);
+  border-bottom: 1px solid rgba(139,111,71,0.12);
+}
+.seo-products-header { margin-bottom: 2.5rem; }
+.seo-products-header h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(1.4rem, 2.5vw, 2rem); font-weight: 400; color: var(--dark);
+}
+.seo-products-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5px;
+  background: rgba(139,111,71,0.08);
+}
+.seo-card {
+  display: block; text-decoration: none; color: inherit;
+  background: var(--cream); transition: opacity 0.2s;
+}
+.seo-card:hover { opacity: 0.9; }
+.seo-card-visual { aspect-ratio: 3/4; overflow: hidden; }
+.seo-card-visual img { width: 100%; height: 100%; object-fit: cover; }
+.seo-card-placeholder {
+  width: 100%; height: 100%;
+  background: linear-gradient(135deg, var(--sepia) 0%, var(--rust) 100%);
+  display: flex; align-items: center; justify-content: center; padding: 1.5rem;
+}
+.seo-card-placeholder span {
+  font-family: 'Playfair Display', serif; color: rgba(255,255,255,0.8);
+  font-size: 1rem; text-align: center;
+}
+.seo-card-caption { padding: 1.25rem 1.5rem; border-top: 2px solid var(--ivory); }
+.seo-card-caption h3 {
+  font-family: 'Playfair Display', serif; font-size: 1rem;
+  font-weight: 400; color: var(--dark); margin-bottom: 0.25rem;
+}
+.seo-card-artist { font-family: 'Cormorant Garamond', serif; font-style: italic; color: var(--dark); font-size: 0.9rem; opacity: 0.7; }
+.seo-card-year { font-family: 'DM Mono', monospace; font-size: 0.55rem; color: var(--sepia); opacity: 0.6; letter-spacing: 0.2em; }
+.seo-card-cta {
+  display: inline-block; margin-top: 0.75rem;
+  font-family: 'DM Mono', monospace; font-size: 0.55rem; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--rust); border-bottom: 1px solid var(--rust);
+}
+
+/* CTA bas */
+.seo-cta {
+  padding: 5rem; text-align: center;
+  background: var(--ivory); border-top: 1px solid rgba(139,111,71,0.1);
+}
+.seo-cta p { font-size: 1rem; color: var(--dark); font-weight: 300; line-height: 1.8; margin-bottom: 2rem; }
+.seo-cta-btns { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+
+@media (max-width: 900px) {
+  .seo-hero, .seo-body, .seo-products, .seo-cta { padding: 4rem 2rem; }
+  .seo-products-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 560px) {
+  .seo-products-grid { grid-template-columns: 1fr; }
+}
+</style>
